@@ -73,7 +73,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit }: Props) {
             <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Step 1 of 2</div>
             <div className="mt-2 text-sm text-muted-foreground">How much did you spend?</div>
             <div className="mt-4 flex items-baseline gap-1">
-              <span className="text-3xl text-muted-foreground">$</span>
+              <span className="text-3xl text-muted-foreground">₹</span>
               <span className="numeric text-6xl font-semibold tracking-tight">{amountStr || "0"}</span>
             </div>
             <input
@@ -109,7 +109,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit }: Props) {
             <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Step 2 of 2</div>
             <div className="mt-2 flex items-baseline justify-between">
               <div className="text-sm text-muted-foreground">Where did it go?</div>
-              <div className="numeric text-2xl font-semibold">${amountStr || "0"}</div>
+              <div className="numeric text-2xl font-semibold">₹{amountStr || "0"}</div>
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
