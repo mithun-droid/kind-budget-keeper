@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BudgetGauge } from "@/components/app/BudgetGauge";
 import { AddTransactionSheet } from "@/components/app/AddTransactionSheet";
 import { LeaksSection, type Leak } from "@/components/app/LeaksSection";
+import { SpendingPie } from "@/components/app/SpendingPie";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 
 export const Route = createFileRoute("/")({
@@ -142,6 +143,9 @@ function Dashboard() {
       <div className="px-6">
         <LeaksSection leaks={leaks} />
       </div>
+
+      <SpendingPie transactions={transactions} />
+
 
       <section className="px-6 mt-6">
         <div className="card-soft p-6">
