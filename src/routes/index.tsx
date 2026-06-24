@@ -28,7 +28,7 @@ const TX_KEY = "qs.transactions.v1";
 const BUDGET_KEY = "qs.budget.v1";
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
 function startOfMonth() {
   const d = new Date();
@@ -192,7 +192,7 @@ function Dashboard() {
             <h3 className="text-lg font-semibold tracking-tight">Monthly budget</h3>
             <p className="text-xs text-muted-foreground mt-1">A calm ceiling for the whole month.</p>
             <div className="mt-5 flex items-baseline gap-2">
-              <span className="text-2xl text-muted-foreground">$</span>
+              <span className="text-2xl text-muted-foreground">₹</span>
               <input
                 autoFocus
                 type="number"

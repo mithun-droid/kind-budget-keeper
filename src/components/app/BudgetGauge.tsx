@@ -6,7 +6,7 @@ interface Props {
 }
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
 export function BudgetGauge({ spent, budget }: Props) {
   const safeBudget = Math.max(budget, 1);
