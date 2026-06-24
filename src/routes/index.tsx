@@ -91,13 +91,13 @@ function Dashboard() {
     showToast("Logged");
   };
 
-  const monthStart = startOfMonth();
   const deleteTransaction = (id: string) => {
     setAllTx((prev) => prev.filter((t) => t.id !== id));
     showToast("Deleted");
   };
 
   const monthStart = startOfMonth();
+
   const transactions = useMemo(
 
     () => allTx.filter((t) => new Date(t.spent_at).getTime() >= monthStart),
