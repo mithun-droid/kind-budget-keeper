@@ -1,14 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { BudgetGauge } from "@/components/app/BudgetGauge";
 import { AddTransactionSheet } from "@/components/app/AddTransactionSheet";
 import { LeaksSection, type Leak } from "@/components/app/LeaksSection";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 
-export const Route = createFileRoute("/_authenticated/")({
+export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Quiet Spend — Your month" },
@@ -16,6 +13,7 @@ export const Route = createFileRoute("/_authenticated/")({
     ],
   }),
   component: Dashboard,
+  ssr: false,
 });
 
 interface Tx {
@@ -26,17 +24,15 @@ interface Tx {
   spent_at: string;
 }
 
-interface Profile {
-  id: string;
-  monthly_budget: number;
-}
+const TX_KEY = "qs.transactions.v1";
+const BUDGET_KEY = "qs.budget.v1";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 
 function startOfMonth() {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+  return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
 }
 function weekStart(offsetWeeks = 0) {
   const d = new Date();
@@ -47,95 +43,66 @@ function weekStart(offsetWeeks = 0) {
 }
 
 function Dashboard() {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
+  const [budget, setBudget] = useState<number>(2000);
+  const [allTx, setAllTx] = useState<Tx[]>([]);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const { data: profile } = useQuery<Profile | null>({
-    queryKey: ["profile"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id,monthly_budget").maybeSingle();
-      if (error) throw error;
-      return data as Profile | null;
-    },
-  });
+  // Load from localStorage
+  useEffect(() => {
+    try {
+      const b = localStorage.getItem(BUDGET_KEY);
+      if (b) setBudget(Number(b));
+      const t = localStorage.getItem(TX_KEY);
+      if (t) setAllTx(JSON.parse(t));
+    } catch {}
+  }, []);
 
-  const { data: transactions = [] } = useQuery<Tx[]>({
-    queryKey: ["transactions", "month"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("id,amount,category,note,spent_at")
-        .gte("spent_at", startOfMonth())
-        .order("spent_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []).map((t) => ({ ...t, amount: Number(t.amount) })) as Tx[];
-    },
-  });
+  // Persist
+  useEffect(() => {
+    try { localStorage.setItem(TX_KEY, JSON.stringify(allTx)); } catch {}
+  }, [allTx]);
+  useEffect(() => {
+    try { localStorage.setItem(BUDGET_KEY, String(budget)); } catch {}
+  }, [budget]);
 
-  const { data: leakWindow = [] } = useQuery<Tx[]>({
-    queryKey: ["transactions", "leak"],
-    queryFn: async () => {
-      const since = weekStart(1).toISOString();
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("id,amount,category,note,spent_at")
-        .gte("spent_at", since);
-      if (error) throw error;
-      return (data ?? []).map((t) => ({ ...t, amount: Number(t.amount) })) as Tx[];
-    },
-  });
+  const showToast = (m: string) => {
+    setToastMsg(m);
+    setTimeout(() => setToastMsg(null), 1800);
+  };
 
-  const addTx = useMutation({
-    mutationFn: async ({ amount, category, note }: { amount: number; category: Category; note: string }) => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
-      const { error } = await supabase.from("transactions").insert({
-        user_id: u.user.id,
-        amount,
-        category,
-        note: note || null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Logged");
-      qc.invalidateQueries({ queryKey: ["transactions"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
-  });
+  const addTransaction = async (amount: number, category: Category, note: string) => {
+    const tx: Tx = {
+      id: crypto.randomUUID(),
+      amount,
+      category,
+      note: note || null,
+      spent_at: new Date().toISOString(),
+    };
+    setAllTx((prev) => [tx, ...prev]);
+    showToast("Logged");
+  };
 
-  const saveBudget = useMutation({
-    mutationFn: async (val: number) => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Not signed in");
-      const { error } = await supabase
-        .from("profiles")
-        .update({ monthly_budget: val })
-        .eq("id", u.user.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Budget updated");
-      setEditingBudget(false);
-      qc.invalidateQueries({ queryKey: ["profile"] });
-    },
-  });
+  const monthStart = startOfMonth();
+  const transactions = useMemo(
+    () => allTx.filter((t) => new Date(t.spent_at).getTime() >= monthStart),
+    [allTx, monthStart],
+  );
 
-  const budget = Number(profile?.monthly_budget ?? 2000);
   const spent = useMemo(() => transactions.reduce((s, t) => s + t.amount, 0), [transactions]);
 
   const leaks = useMemo<Leak[]>(() => {
     const thisStart = weekStart(0).getTime();
     const lastStart = weekStart(1).getTime();
     const map = new Map<Category, { thisWeek: number; lastWeek: number }>();
-    for (const t of leakWindow) {
+    for (const t of allTx) {
       const ts = new Date(t.spent_at).getTime();
+      if (ts < lastStart) continue;
       const cur = map.get(t.category) ?? { thisWeek: 0, lastWeek: 0 };
       if (ts >= thisStart) cur.thisWeek += t.amount;
-      else if (ts >= lastStart) cur.lastWeek += t.amount;
+      else cur.lastWeek += t.amount;
       map.set(t.category, cur);
     }
     return Array.from(map.entries())
@@ -143,35 +110,15 @@ function Dashboard() {
       .filter((l) => l.thisWeek > 0)
       .sort((a, b) => b.thisWeek - a.thisWeek)
       .slice(0, 3);
-  }, [leakWindow]);
-
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") navigate({ to: "/auth" });
-    });
-    return () => sub.subscription.unsubscribe();
-  }, [navigate]);
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
+  }, [allTx]);
 
   return (
     <main className="min-h-screen bg-background pb-32">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-6 pt-8 pb-2">
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight truncate">Your month</h1>
+      <header className="px-6 pt-8 pb-2">
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
         </div>
-        <button
-          onClick={signOut}
-          className="shrink-0 size-10 rounded-full bg-muted grid place-items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Sign out"
-        >
-          ↗
-        </button>
+        <h1 className="text-2xl font-semibold tracking-tight truncate">Your month</h1>
       </header>
 
       <section className="px-6 pt-6 pb-8 flex flex-col items-center">
@@ -223,7 +170,6 @@ function Dashboard() {
         </div>
       </section>
 
-      {/* Floating Add Button */}
       <div className="fixed bottom-6 left-0 right-0 px-6 z-40 flex justify-center pointer-events-none">
         <button
           onClick={() => setOpen(true)}
@@ -236,7 +182,7 @@ function Dashboard() {
       <AddTransactionSheet
         open={open}
         onClose={() => setOpen(false)}
-        onSubmit={(amount, category, note) => addTx.mutateAsync({ amount, category, note })}
+        onSubmit={addTransaction}
       />
 
       {editingBudget && (
@@ -261,7 +207,7 @@ function Dashboard() {
               <button
                 onClick={() => {
                   const v = parseFloat(budgetInput);
-                  if (v > 0) saveBudget.mutate(v);
+                  if (v > 0) { setBudget(v); setEditingBudget(false); showToast("Budget updated"); }
                 }}
                 className="flex-1 py-3 rounded-xl bg-foreground text-background font-medium text-sm"
               >
@@ -272,16 +218,11 @@ function Dashboard() {
         </div>
       )}
 
-      <SonnerHost />
+      {toastMsg && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-full bg-foreground text-background text-sm shadow-lg">
+          {toastMsg}
+        </div>
+      )}
     </main>
   );
-}
-
-function SonnerHost() {
-  // Lazy-mount sonner Toaster to avoid SSR
-  const [Comp, setComp] = useState<React.ComponentType | null>(null);
-  useEffect(() => {
-    import("sonner").then((m) => setComp(() => () => <m.Toaster position="top-center" richColors />));
-  }, []);
-  return Comp ? <Comp /> : null;
 }
