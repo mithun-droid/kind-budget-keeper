@@ -49,6 +49,7 @@ function Dashboard() {
   const [budgetInput, setBudgetInput] = useState("");
   const [budget, setBudget] = useState<number>(2000);
   const [allTx, setAllTx] = useState<Tx[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Load from localStorage
@@ -59,15 +60,19 @@ function Dashboard() {
       const t = localStorage.getItem(TX_KEY);
       if (t) setAllTx(JSON.parse(t));
     } catch {}
+    setLoaded(true);
   }, []);
 
-  // Persist
+  // Persist (only after initial load to avoid overwriting with defaults)
   useEffect(() => {
+    if (!loaded) return;
     try { localStorage.setItem(TX_KEY, JSON.stringify(allTx)); } catch {}
-  }, [allTx]);
+  }, [allTx, loaded]);
   useEffect(() => {
+    if (!loaded) return;
     try { localStorage.setItem(BUDGET_KEY, String(budget)); } catch {}
-  }, [budget]);
+  }, [budget, loaded]);
+
 
   const showToast = (m: string) => {
     setToastMsg(m);
