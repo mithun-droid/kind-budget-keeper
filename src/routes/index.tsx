@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { BudgetGauge } from "@/components/app/BudgetGauge";
 import { AddTransactionSheet } from "@/components/app/AddTransactionSheet";
@@ -176,11 +176,19 @@ function Dashboard() {
 
   return (
     <main className="min-h-screen bg-background pb-32">
-      <header className="px-6 pt-8 pb-2">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+      <header className="px-6 pt-8 pb-2 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight truncate">Your month</h1>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight truncate">Your month</h1>
+        <Link
+          to="/report"
+          className="shrink-0 mt-1 px-3 py-1.5 rounded-full border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors flex items-center gap-1.5"
+        >
+          <span>📊</span> Report
+        </Link>
       </header>
 
       <section className="px-6 pt-6 pb-8 flex flex-col items-center">
