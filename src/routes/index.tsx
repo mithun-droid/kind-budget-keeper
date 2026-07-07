@@ -5,6 +5,7 @@ import { AddTransactionSheet } from "@/components/app/AddTransactionSheet";
 import { LeaksSection, type Leak } from "@/components/app/LeaksSection";
 import { SpendingPie } from "@/components/app/SpendingPie";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,9 +26,6 @@ interface Tx {
   spent_at: string;
 }
 
-const TX_KEY = "qs.transactions.v1";
-const BUDGET_KEY = "qs.budget.v1";
-
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
@@ -43,36 +41,57 @@ function weekStart(offsetWeeks = 0) {
   return d;
 }
 
+async function ensureSession(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user) return data.session.user.id;
+  const { data: signIn, error } = await supabase.auth.signInAnonymously();
+  if (error) {
+    console.error("[auth] anonymous sign-in failed", error);
+    return null;
+  }
+  return signIn.user?.id ?? null;
+}
+
 function Dashboard() {
   const [open, setOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
   const [budget, setBudget] = useState<number>(2000);
   const [allTx, setAllTx] = useState<Tx[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Load from localStorage
   useEffect(() => {
-    try {
-      const b = localStorage.getItem(BUDGET_KEY);
-      if (b) setBudget(Number(b));
-      const t = localStorage.getItem(TX_KEY);
-      if (t) setAllTx(JSON.parse(t));
-    } catch {}
-    setLoaded(true);
+    let cancelled = false;
+    (async () => {
+      const uid = await ensureSession();
+      if (!uid || cancelled) return;
+      setUserId(uid);
+      await supabase.from("profiles").upsert({ id: uid }, { onConflict: "id" });
+      const [{ data: profile }, { data: txs }] = await Promise.all([
+        supabase.from("profiles").select("monthly_budget").eq("id", uid).maybeSingle(),
+        supabase
+          .from("transactions")
+          .select("id, amount, category, note, spent_at")
+          .eq("user_id", uid)
+          .order("spent_at", { ascending: false }),
+      ]);
+      if (cancelled) return;
+      if (profile?.monthly_budget != null) setBudget(Number(profile.monthly_budget));
+      if (txs) {
+        setAllTx(
+          txs.map((t) => ({
+            id: t.id,
+            amount: Number(t.amount),
+            category: t.category as Category,
+            note: t.note,
+            spent_at: t.spent_at,
+          })),
+        );
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
-
-  // Persist (only after initial load to avoid overwriting with defaults)
-  useEffect(() => {
-    if (!loaded) return;
-    try { localStorage.setItem(TX_KEY, JSON.stringify(allTx)); } catch {}
-  }, [allTx, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    try { localStorage.setItem(BUDGET_KEY, String(budget)); } catch {}
-  }, [budget, loaded]);
-
 
   const showToast = (m: string) => {
     setToastMsg(m);
@@ -80,20 +99,50 @@ function Dashboard() {
   };
 
   const addTransaction = async (amount: number, category: Category, note: string) => {
-    const tx: Tx = {
-      id: crypto.randomUUID(),
-      amount,
-      category,
-      note: note || null,
-      spent_at: new Date().toISOString(),
-    };
-    setAllTx((prev) => [tx, ...prev]);
+    if (!userId) { showToast("Syncing…"); return; }
+    const spent_at = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("transactions")
+      .insert({ user_id: userId, amount, category, note: note || null, spent_at })
+      .select("id, amount, category, note, spent_at")
+      .single();
+    if (error || !data) {
+      console.error("[tx] insert failed", error);
+      showToast("Couldn't save");
+      return;
+    }
+    setAllTx((prev) => [{
+      id: data.id,
+      amount: Number(data.amount),
+      category: data.category as Category,
+      note: data.note,
+      spent_at: data.spent_at,
+    }, ...prev]);
     showToast("Logged");
   };
 
-  const deleteTransaction = (id: string) => {
-    setAllTx((prev) => prev.filter((t) => t.id !== id));
+  const deleteTransaction = async (id: string) => {
+    const prev = allTx;
+    setAllTx((p) => p.filter((t) => t.id !== id));
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    if (error) {
+      console.error("[tx] delete failed", error);
+      setAllTx(prev);
+      showToast("Couldn't delete");
+      return;
+    }
     showToast("Deleted");
+  };
+
+  const saveBudget = async (v: number) => {
+    setBudget(v);
+    setEditingBudget(false);
+    showToast("Budget updated");
+    if (!userId) return;
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, monthly_budget: v }, { onConflict: "id" });
+    if (error) console.error("[budget] save failed", error);
   };
 
   const monthStart = startOfMonth();
@@ -231,7 +280,7 @@ function Dashboard() {
               <button
                 onClick={() => {
                   const v = parseFloat(budgetInput);
-                  if (v > 0) { setBudget(v); setEditingBudget(false); showToast("Budget updated"); }
+                  if (v > 0) { saveBudget(v); }
                 }}
                 className="flex-1 py-3 rounded-xl bg-foreground text-background font-medium text-sm"
               >
