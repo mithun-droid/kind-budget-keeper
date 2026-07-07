@@ -280,7 +280,7 @@ function Dashboard() {
               <button
                 onClick={() => {
                   const v = parseFloat(budgetInput);
-                  if (v > 0) { setBudget(v); setEditingBudget(false); showToast("Budget updated"); }
+                  if (v > 0) { saveBudget(v); }
                 }}
                 className="flex-1 py-3 rounded-xl bg-foreground text-background font-medium text-sm"
               >
