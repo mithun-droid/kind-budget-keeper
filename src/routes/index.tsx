@@ -4,6 +4,7 @@ import { BudgetGauge } from "@/components/app/BudgetGauge";
 import { AddTransactionSheet } from "@/components/app/AddTransactionSheet";
 import { LeaksSection, type Leak } from "@/components/app/LeaksSection";
 import { SpendingPie } from "@/components/app/SpendingPie";
+import { BudgetPrediction } from "@/components/app/BudgetPrediction";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -209,6 +210,8 @@ function Dashboard() {
         </div>
       </section>
 
+      <BudgetPrediction transactions={allTx} budget={budget} />
+
       <div className="px-6">
         <LeaksSection leaks={leaks} />
       </div>
@@ -264,6 +267,7 @@ function Dashboard() {
         open={open}
         onClose={() => setOpen(false)}
         onSubmit={addTransaction}
+        history={allTx}
       />
 
       {editingBudget && (

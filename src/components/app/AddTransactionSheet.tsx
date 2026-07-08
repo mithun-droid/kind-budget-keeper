@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
-import { CATEGORIES, type Category } from "./categories";
+import { useEffect, useMemo, useState } from "react";
+import { CATEGORIES, categoryLabel, type Category } from "./categories";
+import { suggestCategory, type PredTx } from "@/lib/predictions";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (amount: number, category: Category, note: string) => Promise<void>;
+  history?: PredTx[];
 }
 
 const KEYS = ["1","2","3","4","5","6","7","8","9",".","0","⌫"];
 
-export function AddTransactionSheet({ open, onClose, onSubmit }: Props) {
+export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: Props) {
   const [step, setStep] = useState<1 | 2>(1);
   const [amountStr, setAmountStr] = useState("");
   const [note, setNote] = useState("");
@@ -26,6 +28,10 @@ export function AddTransactionSheet({ open, onClose, onSubmit }: Props) {
   if (!open) return null;
 
   const amount = parseFloat(amountStr || "0");
+  const suggestion = useMemo(
+    () => (step === 2 && amount > 0 ? suggestCategory(amount, history) : null),
+    [step, amount, history],
+  );
 
   const press = (k: string) => {
     if (k === "⌫") {
@@ -111,6 +117,24 @@ export function AddTransactionSheet({ open, onClose, onSubmit }: Props) {
               <div className="text-sm text-muted-foreground">Where did it go?</div>
               <div className="numeric text-2xl font-semibold">₹{amountStr || "0"}</div>
             </div>
+
+            {suggestion && (
+              <button
+                onClick={() => pickCategory(suggestion.category)}
+                disabled={submitting}
+                className="mt-4 w-full flex items-center gap-3 p-3 rounded-2xl bg-foreground/5 border border-foreground/10 text-left transition-transform active:scale-[0.98] disabled:opacity-50"
+              >
+                <span className="text-2xl">✨</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Suggested · {Math.round(suggestion.confidence * 100)}% match
+                  </div>
+                  <div className="font-semibold text-sm">Likely: {categoryLabel(suggestion.category)}</div>
+                </div>
+                <span className="text-xs text-muted-foreground">Tap to use →</span>
+              </button>
+            )}
+
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               {CATEGORIES.map((c) => (
