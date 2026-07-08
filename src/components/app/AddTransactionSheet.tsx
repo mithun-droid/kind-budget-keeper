@@ -11,7 +11,7 @@ interface Props {
 
 const KEYS = ["1","2","3","4","5","6","7","8","9",".","0","⌫"];
 
-export function AddTransactionSheet({ open, onClose, onSubmit }: Props) {
+export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: Props) {
   const [step, setStep] = useState<1 | 2>(1);
   const [amountStr, setAmountStr] = useState("");
   const [note, setNote] = useState("");
