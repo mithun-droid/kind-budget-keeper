@@ -210,6 +210,8 @@ function Dashboard() {
         </div>
       </section>
 
+      <BudgetPrediction transactions={allTx} budget={budget} />
+
       <div className="px-6">
         <LeaksSection leaks={leaks} />
       </div>
