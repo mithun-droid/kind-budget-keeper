@@ -25,13 +25,14 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
     }
   }, [open]);
 
-  if (!open) return null;
-
   const amount = parseFloat(amountStr || "0");
   const suggestion = useMemo(
-    () => (step === 2 && amount > 0 ? suggestCategory(amount, history) : null),
-    [step, amount, history],
+    () => (open && step === 2 && amount > 0 ? suggestCategory(amount, history) : null),
+    [open, step, amount, history],
   );
+
+  if (!open) return null;
+
 
   const press = (k: string) => {
     if (k === "⌫") {
