@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
-import { CATEGORIES, type Category } from "./categories";
+import { useEffect, useMemo, useState } from "react";
+import { CATEGORIES, categoryLabel, type Category } from "./categories";
+import { suggestCategory, type PredTx } from "@/lib/predictions";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (amount: number, category: Category, note: string) => Promise<void>;
+  history?: PredTx[];
 }
 
 const KEYS = ["1","2","3","4","5","6","7","8","9",".","0","⌫"];
