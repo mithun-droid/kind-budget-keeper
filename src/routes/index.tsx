@@ -267,6 +267,7 @@ function Dashboard() {
         open={open}
         onClose={() => setOpen(false)}
         onSubmit={addTransaction}
+        history={allTx}
       />
 
       {editingBudget && (
