@@ -56,7 +56,12 @@ async function ensureSession(): Promise<string | null> {
   return signIn.user?.id ?? null;
 }
 
+interface FamilySummary {
+  id: string; name: string; monthly_budget: number; spent: number; member_count: number;
+}
+
 function Dashboard() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
@@ -64,6 +69,40 @@ function Dashboard() {
   const [allTx, setAllTx] = useState<Tx[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [families, setFamilies] = useState<FamilySummary[]>([]);
+  const [createFamOpen, setCreateFamOpen] = useState(false);
+  const [justCreated, setJustCreated] = useState<FamilySummary | null>(null);
+
+  const loadFamilies = async (uid: string) => {
+    const monthStart = new Date();
+    monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    const { data: mine } = await supabase
+      .from("family_members")
+      .select("family_id, families!inner(id, name, monthly_budget)")
+      .eq("linked_user_id", uid);
+    const rows = (mine ?? []) as any[];
+    const ids = Array.from(new Set(rows.map((r) => r.family_id)));
+    if (ids.length === 0) { setFamilies([]); return; }
+    const [{ data: memberCounts }, { data: txSum }] = await Promise.all([
+      supabase.from("family_members").select("family_id").in("family_id", ids),
+      supabase.from("transactions").select("family_id, amount").in("family_id", ids).gte("spent_at", monthStart.toISOString()),
+    ]);
+    const countMap = new Map<string, number>();
+    for (const m of (memberCounts as any[]) ?? []) countMap.set(m.family_id, (countMap.get(m.family_id) ?? 0) + 1);
+    const spentMap = new Map<string, number>();
+    for (const t of (txSum as any[]) ?? []) spentMap.set(t.family_id, (spentMap.get(t.family_id) ?? 0) + Number(t.amount));
+    const seen = new Set<string>();
+    const list: FamilySummary[] = [];
+    for (const r of rows) {
+      if (seen.has(r.family_id)) continue;
+      seen.add(r.family_id);
+      list.push({
+        id: r.family_id, name: r.families.name, monthly_budget: Number(r.families.monthly_budget),
+        spent: spentMap.get(r.family_id) ?? 0, member_count: countMap.get(r.family_id) ?? 0,
+      });
+    }
+    setFamilies(list);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +117,7 @@ function Dashboard() {
           .from("transactions")
           .select("id, amount, category, note, spent_at")
           .eq("user_id", uid)
+          .is("family_id", null)
           .order("spent_at", { ascending: false }),
       ]);
       if (cancelled) return;
@@ -93,6 +133,7 @@ function Dashboard() {
           })),
         );
       }
+      await loadFamilies(uid);
     })();
     return () => { cancelled = true; };
   }, []);
