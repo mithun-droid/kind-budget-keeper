@@ -221,12 +221,26 @@ function Dashboard() {
 
   return (
     <main className="min-h-screen bg-background pb-32">
-      <header className="px-6 pt-8 pb-2 flex items-start justify-between gap-3">
+      {/* Top nav */}
+      <div className="px-6 pt-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="size-8 rounded-xl grid place-items-center text-white font-bold text-sm" style={{ background: "var(--color-forest-deep)" }}>S</div>
+          <div className="font-semibold tracking-tight">SpendWise</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: "color-mix(in oklab, var(--color-forest) 14%, transparent)", color: "var(--color-forest-deep)" }}>Dashboard</span>
+          <div className="size-8 rounded-full bg-muted grid place-items-center text-xs font-semibold">👤</div>
+        </div>
+      </div>
+
+      <header className="px-6 pt-6 pb-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight truncate">Your month</h1>
+          <h1 className="text-2xl font-semibold tracking-tight truncate">
+            {families.length === 0 ? "Your Personal Budget" : "Your month"}
+          </h1>
         </div>
         <Link
           to="/report"
