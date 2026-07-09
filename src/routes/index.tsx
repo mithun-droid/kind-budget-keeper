@@ -1,18 +1,21 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { BudgetGauge } from "@/components/app/BudgetGauge";
 import { AddTransactionSheet } from "@/components/app/AddTransactionSheet";
 import { LeaksSection, type Leak } from "@/components/app/LeaksSection";
 import { SpendingPie } from "@/components/app/SpendingPie";
 import { BudgetPrediction } from "@/components/app/BudgetPrediction";
+import { CreateFamilyModal } from "@/components/family/CreateFamilyModal";
+import { InviteButton } from "@/components/family/InviteButton";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 import { supabase } from "@/integrations/supabase/client";
+import { fmtINR, ringStatus } from "@/lib/family";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Quiet Spend — Your month" },
-      { name: "description", content: "Your calm overview of spending, budget, and weekly leaks." },
+      { title: "SpendWise — Your money, together" },
+      { name: "description", content: "Track personal spending and share family budgets with equal permissions for everyone." },
     ],
   }),
   component: Dashboard,
