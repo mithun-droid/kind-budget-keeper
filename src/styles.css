@@ -40,6 +40,9 @@
   --color-calm: var(--calm);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
+  --color-forest: var(--forest);
+  --color-forest-deep: var(--forest-deep);
+  --color-whatsapp: var(--whatsapp);
 }
 
 :root {
