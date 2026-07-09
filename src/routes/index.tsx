@@ -465,3 +465,23 @@ function Dashboard() {
     </main>
   );
 }
+
+function RingMini({ pct, tone }: { pct: number; tone: "calm" | "warn" | "danger" }) {
+  const size = 44, stroke = 5, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size} className="-rotate-90 shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} stroke="var(--muted)" strokeWidth={stroke} fill="none" />
+      <circle cx={size / 2} cy={size / 2} r={r} stroke={`var(--color-${tone})`} strokeWidth={stroke} fill="none"
+        strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
+    </svg>
+  );
+}
+
+function TabItem({ icon, label, active, onClick }: { icon: string; label: string; active?: boolean; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col items-center gap-0.5 py-1 ${active ? "text-[var(--color-forest-deep)]" : "text-muted-foreground"}`}>
+      <span className="text-lg leading-none">{icon}</span>
+      <span>{label}</span>
+    </button>
+  );
+}
