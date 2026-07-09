@@ -14,6 +14,121 @@ export type Database = {
   }
   public: {
     Tables: {
+      families: {
+        Row: {
+          alloc_daily_living: number
+          alloc_fixed_bills: number
+          alloc_shopping: number
+          alloc_unplanned: number
+          created_at: string
+          created_by: string
+          id: string
+          monthly_budget: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          alloc_daily_living?: number
+          alloc_fixed_bills?: number
+          alloc_shopping?: number
+          alloc_unplanned?: number
+          created_at?: string
+          created_by: string
+          id?: string
+          monthly_budget: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          alloc_daily_living?: number
+          alloc_fixed_bills?: number
+          alloc_shopping?: number
+          alloc_unplanned?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          monthly_budget?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      family_invites: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          family_id: string
+          id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          family_id: string
+          id?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          family_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_invites_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_members: {
+        Row: {
+          created_at: string
+          email: string | null
+          family_id: string
+          id: string
+          individual_budget: number
+          linked_user_id: string | null
+          name: string
+          phone: string | null
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          family_id: string
+          id?: string
+          individual_budget?: number
+          linked_user_id?: string | null
+          name: string
+          phone?: string | null
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          family_id?: string
+          id?: string
+          individual_budget?: number
+          linked_user_id?: string | null
+          name?: string
+          phone?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -40,7 +155,9 @@ export type Database = {
           amount: number
           category: Database["public"]["Enums"]["expense_category"]
           created_at: string
+          family_id: string | null
           id: string
+          member_id: string | null
           note: string | null
           spent_at: string
           user_id: string
@@ -49,7 +166,9 @@ export type Database = {
           amount: number
           category: Database["public"]["Enums"]["expense_category"]
           created_at?: string
+          family_id?: string | null
           id?: string
+          member_id?: string | null
           note?: string | null
           spent_at?: string
           user_id: string
@@ -58,19 +177,39 @@ export type Database = {
           amount?: number
           category?: Database["public"]["Enums"]["expense_category"]
           created_at?: string
+          family_id?: string | null
           id?: string
+          member_id?: string | null
           note?: string | null
           spent_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transactions_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_family_member: {
+        Args: { _family: string; _uid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       expense_category:
