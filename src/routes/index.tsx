@@ -312,14 +312,110 @@ function Dashboard() {
         </div>
       </section>
 
-      <div className="fixed bottom-6 left-0 right-0 px-6 z-40 flex justify-center pointer-events-none">
+      {/* Families section — grid when in families, prominent CTA when none */}
+      <section className="px-6 mt-6">
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-lg font-semibold tracking-tight">
+            {families.length === 0 ? "Family budgets" : "Your families"}
+          </h2>
+          {families.length > 0 && (
+            <button onClick={() => setCreateFamOpen(true)} className="text-xs font-medium text-[var(--color-forest-deep)]">+ New</button>
+          )}
+        </div>
+
+        {families.length === 0 ? (
+          <button
+            onClick={() => setCreateFamOpen(true)}
+            className="w-full p-6 rounded-3xl text-white text-left shadow-lg transition active:scale-[0.99]"
+            style={{ background: "linear-gradient(135deg, #7c3aed, #5b21b6)" }}
+          >
+            <div className="text-xs uppercase tracking-widest opacity-80">Share with your household</div>
+            <div className="text-xl font-semibold mt-1">Create Family</div>
+            <div className="text-sm mt-1 opacity-90">One shared budget, everyone equal. Invite in one tap via WhatsApp.</div>
+          </button>
+        ) : (
+          <div className="grid gap-3">
+            {families.map((f) => {
+              const status = ringStatus(f.spent, f.monthly_budget);
+              const pct = Math.min(f.spent / Math.max(f.monthly_budget, 1), 1);
+              return (
+                <div key={f.id} className="card-soft p-4">
+                  <div className="flex items-center gap-3">
+                    <RingMini pct={pct} tone={status.tone} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">{f.name}</div>
+                      <div className="text-[11px] text-muted-foreground numeric">
+                        {fmtINR(f.spent)} / {fmtINR(f.monthly_budget)} · {f.member_count} member{f.member_count === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                      style={{ background: `color-mix(in oklab, var(--color-${status.tone}) 14%, transparent)`, color: `var(--color-${status.tone})` }}
+                    >{status.label}</span>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => navigate({ to: "/family/$id", params: { id: f.id } })} className="flex-1 py-2 rounded-xl border text-xs font-medium">View</button>
+                    <button onClick={() => navigate({ to: "/family/$id", params: { id: f.id } })} className="flex-1 py-2 rounded-xl border text-xs font-medium">Edit</button>
+                    <InviteButton
+                      familyId={f.id} familyName={f.name} budget={f.monthly_budget} onToast={showToast}
+                      label="Invite"
+                      className="flex-1 py-2 rounded-xl text-xs font-medium text-white flex items-center justify-center gap-1"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {justCreated && (
+        <section className="px-6 mt-4">
+          <div className="card-soft p-4 flex items-center gap-3" style={{ borderColor: "var(--color-forest)" }}>
+            <div className="text-2xl">🎉</div>
+            <div className="flex-1">
+              <div className="font-semibold text-sm">Family created</div>
+              <div className="text-xs text-muted-foreground">Invite people so they can join right away.</div>
+            </div>
+            <InviteButton familyId={justCreated.id} familyName={justCreated.name} budget={justCreated.monthly_budget} onToast={showToast} label="Invite" />
+          </div>
+        </section>
+      )}
+
+      <div className="fixed bottom-20 left-0 right-0 px-6 z-40 flex justify-center pointer-events-none">
         <button
           onClick={() => setOpen(true)}
-          className="pointer-events-auto px-7 py-4 rounded-full bg-foreground text-background shadow-[0_18px_40px_-12px_oklch(0.22_0.012_260_/_0.45)] font-medium text-base flex items-center gap-2 transition-transform active:scale-95"
+          className="pointer-events-auto px-7 py-4 rounded-full text-white shadow-[0_18px_40px_-12px_oklch(0.30_0.08_155_/_0.55)] font-medium text-base flex items-center gap-2 transition-transform active:scale-95"
+          style={{ background: "var(--color-forest-deep)" }}
         >
           <span className="text-xl leading-none">＋</span> Add expense
         </button>
       </div>
+
+      {/* Bottom tab bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-surface-elevated/95 backdrop-blur border-t border-border">
+        <div className="max-w-md mx-auto grid grid-cols-4 py-2 text-[10px] font-medium">
+          <TabItem icon="🏠" label="Home" active />
+          <TabItem icon="➕" label="Add" onClick={() => setOpen(true)} />
+          <TabItem icon="🧾" label="History" onClick={() => document.getElementById("recent-anchor")?.scrollIntoView({ behavior: "smooth" })} />
+          <TabItem icon="⚙️" label="Settings" onClick={() => { setBudgetInput(String(budget)); setEditingBudget(true); }} />
+        </div>
+      </nav>
+
+      <CreateFamilyModal
+        open={createFamOpen}
+        onClose={() => setCreateFamOpen(false)}
+        userId={userId}
+        creatorName="You"
+        onCreated={async (fid) => {
+          setCreateFamOpen(false);
+          showToast("Family created successfully! 🎉");
+          if (userId) await loadFamilies(userId);
+          const created = (await supabase.from("families").select("*").eq("id", fid).maybeSingle()).data as any;
+          if (created) setJustCreated({ id: created.id, name: created.name, monthly_budget: Number(created.monthly_budget), spent: 0, member_count: 1 });
+          setTimeout(() => navigate({ to: "/family/$id", params: { id: fid } }), 2000);
+        }}
+      />
 
       <AddTransactionSheet
         open={open}
