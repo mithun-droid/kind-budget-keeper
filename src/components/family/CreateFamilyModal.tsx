@@ -102,10 +102,17 @@ export function CreateFamilyModal({
         <div className="mt-6 flex gap-2">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border font-medium text-sm">Cancel</button>
           <button
-            disabled={!valid || saving || !userId}
+            disabled={!valid || saving}
             onClick={async () => {
-              if (!userId) return;
               setSaving(true); setErr(null);
+              // Always resolve the current auth user; prop may be stale/null on first mount
+              const { data: sess } = await supabase.auth.getSession();
+              const uid = sess.session?.user?.id ?? userId;
+              if (!uid) {
+                setErr("Still syncing your session. Please try again in a moment.");
+                setSaving(false);
+                return;
+              }
               const { data: fam, error } = await supabase
                 .from("families")
                 .insert({
@@ -115,7 +122,7 @@ export function CreateFamilyModal({
                   alloc_daily_living: alloc.daily_living,
                   alloc_shopping: alloc.shopping,
                   alloc_unplanned: alloc.unplanned,
-                  created_by: userId,
+                  created_by: uid,
                 })
                 .select("id")
                 .single();
@@ -126,12 +133,13 @@ export function CreateFamilyModal({
               }
               const { error: mErr } = await supabase.from("family_members").insert({
                 family_id: fam.id,
-                linked_user_id: userId,
+                linked_user_id: uid,
                 name: creatorName,
                 role: "member",
                 individual_budget: budget,
               });
               if (mErr) console.error("[member seed]", mErr);
+
               setSaving(false);
               onCreated(fam.id);
             }}
