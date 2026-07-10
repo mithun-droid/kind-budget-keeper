@@ -5,13 +5,22 @@ export function generateInviteCode(): string {
   return out;
 }
 
+export function joinUrl(code: string): string {
+  const origin =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://spendwise.app";
+  return `${origin}/join?code=${encodeURIComponent(code)}`;
+}
+
 export function whatsappInviteUrl(opts: { familyName: string; code: string; budget: number }) {
+  const link = joinUrl(opts.code);
   const msg =
     `Hey! 👋 Join our family budget on SpendWise!\n\n` +
     `Family: ${opts.familyName}\n` +
     `Code: ${opts.code}\n` +
     `Budget: ₹${opts.budget.toLocaleString("en-IN")}/month\n` +
-    `Download: https://yourapp.com/join\n\n` +
+    `Join here: ${link}\n\n` +
     `Let's manage our spending together! 💚`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 }
