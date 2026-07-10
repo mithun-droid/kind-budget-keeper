@@ -126,16 +126,6 @@ export function CreateFamilyModal({
                 })
                 .select("id")
                 .single();
-
-                  monthly_budget: budget,
-                  alloc_fixed_bills: alloc.fixed_bills,
-                  alloc_daily_living: alloc.daily_living,
-                  alloc_shopping: alloc.shopping,
-                  alloc_unplanned: alloc.unplanned,
-                  created_by: userId,
-                })
-                .select("id")
-                .single();
               if (error || !fam) {
                 setErr(error?.message ?? "Couldn't create family");
                 setSaving(false);
@@ -143,12 +133,13 @@ export function CreateFamilyModal({
               }
               const { error: mErr } = await supabase.from("family_members").insert({
                 family_id: fam.id,
-                linked_user_id: userId,
+                linked_user_id: uid,
                 name: creatorName,
                 role: "member",
                 individual_budget: budget,
               });
               if (mErr) console.error("[member seed]", mErr);
+
               setSaving(false);
               onCreated(fam.id);
             }}
