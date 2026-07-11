@@ -83,7 +83,10 @@ function FamilyDashboard() {
           <h1 className="text-2xl font-semibold tracking-tight truncate mt-1">{family.name}</h1>
           <div className="text-xs text-muted-foreground">{members.length} member{members.length === 1 ? "" : "s"}</div>
         </div>
-        <button onClick={() => setEditOpen(true)} className="shrink-0 mt-1 px-3 py-1.5 rounded-full border text-xs font-medium">⚙️ Edit</button>
+        <div className="shrink-0 flex gap-1.5">
+          <Link to="/report" search={{ family: family.id }} className="mt-1 px-3 py-1.5 rounded-full border text-xs font-medium flex items-center gap-1">📊 Report</Link>
+          <button onClick={() => setEditOpen(true)} className="mt-1 px-3 py-1.5 rounded-full border text-xs font-medium">⚙️ Edit</button>
+        </div>
       </header>
 
       <section className="px-6 flex flex-col items-center">
