@@ -6,6 +6,7 @@ import { SpendingPie } from "@/components/app/SpendingPie";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 import { AddMemberModal } from "@/components/family/AddMemberModal";
 import { InviteButton } from "@/components/family/InviteButton";
+import { AddTransactionSheet } from "@/components/app/AddTransactionSheet";
 import { fmtINR, ringStatus } from "@/lib/family";
 
 export const Route = createFileRoute("/family/$id")({
