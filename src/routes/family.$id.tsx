@@ -115,6 +115,10 @@ function FamilyDashboard() {
         </button>
       </section>
 
+      <BudgetPrediction transactions={txs as any} budget={family.monthly_budget} />
+
+
+
       <section className="px-6 mt-8">
         <div className="card-soft p-5">
           <div className="flex items-baseline justify-between mb-3">
