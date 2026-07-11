@@ -6,6 +6,7 @@ import { SpendingPie } from "@/components/app/SpendingPie";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 import { AddMemberModal } from "@/components/family/AddMemberModal";
 import { InviteButton } from "@/components/family/InviteButton";
+import { AddTransactionSheet } from "@/components/app/AddTransactionSheet";
 import { fmtINR, ringStatus } from "@/lib/family";
 
 export const Route = createFileRoute("/family/$id")({
@@ -35,8 +36,14 @@ function FamilyDashboard() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = (m: string) => { setToastMsg(m); setTimeout(() => setToastMsg(null), 1800); };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
+  }, []);
 
   async function refresh() {
     const [{ data: f }, { data: ms }, { data: tx }] = await Promise.all([
@@ -95,6 +102,13 @@ function FamilyDashboard() {
           <InviteButton familyId={family.id} familyName={family.name} budget={family.monthly_budget} onToast={showToast} />
           <button onClick={() => setAddOpen(true)} className="flex-1 py-2.5 rounded-full border text-sm font-medium">+ Member</button>
         </div>
+        <button
+          onClick={() => setAddExpenseOpen(true)}
+          className="mt-3 w-full max-w-xs py-3 rounded-full text-white font-medium text-sm shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+          style={{ background: "var(--color-forest-deep)" }}
+        >
+          <span className="text-lg leading-none">＋</span> Add family expense
+        </button>
       </section>
 
       <section className="px-6 mt-8">
@@ -169,6 +183,27 @@ function FamilyDashboard() {
       </section>
 
       <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} familyId={family.id} onAdded={refresh} />
+
+      <AddTransactionSheet
+        open={addExpenseOpen}
+        onClose={() => setAddExpenseOpen(false)}
+        history={txs as any}
+        onSubmit={async (amount, category, note) => {
+          const uid = userId ?? (await supabase.auth.getSession()).data.session?.user?.id ?? null;
+          if (!uid) { showToast("Syncing…"); return; }
+          const myMember = members.find((m) => m.linked_user_id === uid);
+          const { error } = await supabase.from("transactions").insert({
+            user_id: uid,
+            family_id: family.id,
+            member_id: myMember?.id ?? null,
+            amount, category, note: note || null,
+            spent_at: new Date().toISOString(),
+          });
+          if (error) { console.error("[family tx] insert failed", error); showToast("Couldn't save"); return; }
+          showToast("Logged");
+          refresh();
+        }}
+      />
 
       {editOpen && (
         <EditFamilyModal
