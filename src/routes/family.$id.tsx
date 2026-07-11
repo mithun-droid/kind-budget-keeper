@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BudgetGauge } from "@/components/app/BudgetGauge";
 import { SpendingPie } from "@/components/app/SpendingPie";
+import { BudgetPrediction } from "@/components/app/BudgetPrediction";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 import { AddMemberModal } from "@/components/family/AddMemberModal";
 import { InviteButton } from "@/components/family/InviteButton";
@@ -82,7 +83,10 @@ function FamilyDashboard() {
           <h1 className="text-2xl font-semibold tracking-tight truncate mt-1">{family.name}</h1>
           <div className="text-xs text-muted-foreground">{members.length} member{members.length === 1 ? "" : "s"}</div>
         </div>
-        <button onClick={() => setEditOpen(true)} className="shrink-0 mt-1 px-3 py-1.5 rounded-full border text-xs font-medium">⚙️ Edit</button>
+        <div className="shrink-0 flex gap-1.5">
+          <Link to="/report" search={{ family: family.id }} className="mt-1 px-3 py-1.5 rounded-full border text-xs font-medium flex items-center gap-1">📊 Report</Link>
+          <button onClick={() => setEditOpen(true)} className="mt-1 px-3 py-1.5 rounded-full border text-xs font-medium">⚙️ Edit</button>
+        </div>
       </header>
 
       <section className="px-6 flex flex-col items-center">
@@ -110,6 +114,10 @@ function FamilyDashboard() {
           <span className="text-lg leading-none">＋</span> Add family expense
         </button>
       </section>
+
+      <BudgetPrediction transactions={txs as any} budget={family.monthly_budget} />
+
+
 
       <section className="px-6 mt-8">
         <div className="card-soft p-5">
