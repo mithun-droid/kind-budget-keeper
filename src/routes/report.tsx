@@ -156,7 +156,9 @@ function Report() {
       </header>
 
       <div className="px-6">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Report</div>
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          {familyName ? `${familyName} · Report` : "Report"}
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight">{monthLabel}</h1>
         <div className="numeric mt-2 text-4xl font-semibold">{fmt(total)}</div>
         <div className="text-xs text-muted-foreground mt-1">
