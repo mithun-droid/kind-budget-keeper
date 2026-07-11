@@ -47,23 +47,33 @@ function daysInMonth(d: Date) {
 }
 
 function Report() {
+  const { family: familyId } = Route.useSearch();
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [familyName, setFamilyName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState<string>(monthKey(new Date()));
   const [mode, setMode] = useState<"overview" | "daily">("overview");
 
   useEffect(() => {
     (async () => {
-      const { data: session } = await supabase.auth.getSession();
-      const uid = session.session?.user.id;
-      if (!uid) { setLoading(false); return; }
-      const { data } = await supabase
+      setLoading(true);
+      let q = supabase
         .from("transactions")
         .select("id, amount, category, note, spent_at")
-        .eq("user_id", uid)
         .order("spent_at", { ascending: false });
+      if (familyId) {
+        q = q.eq("family_id", familyId);
+        const { data: fam } = await supabase.from("families").select("name").eq("id", familyId).maybeSingle();
+        setFamilyName((fam as any)?.name ?? null);
+      } else {
+        const { data: session } = await supabase.auth.getSession();
+        const uid = session.session?.user.id;
+        if (!uid) { setLoading(false); return; }
+        q = q.eq("user_id", uid).is("family_id", null);
+      }
+      const { data } = await q;
       setTxs(
-        (data ?? []).map((t) => ({
+        (data ?? []).map((t: any) => ({
           id: t.id,
           amount: Number(t.amount),
           category: t.category as Category,
@@ -73,7 +83,7 @@ function Report() {
       );
       setLoading(false);
     })();
-  }, []);
+  }, [familyId]);
 
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
