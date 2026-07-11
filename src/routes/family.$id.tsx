@@ -36,8 +36,14 @@ function FamilyDashboard() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = (m: string) => { setToastMsg(m); setTimeout(() => setToastMsg(null), 1800); };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
+  }, []);
 
   async function refresh() {
     const [{ data: f }, { data: ms }, { data: tx }] = await Promise.all([
