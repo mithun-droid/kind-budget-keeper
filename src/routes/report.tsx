@@ -3,14 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES, categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
+import { z } from "zod";
 
 export const Route = createFileRoute("/report")({
   head: () => ({
     meta: [
-      { title: "Monthly report — Quiet Spend" },
+      { title: "Monthly report — SpendWise" },
       { name: "description", content: "See where you spent the most and least, day by day." },
     ],
   }),
+  validateSearch: z.object({ family: z.string().optional() }),
   component: Report,
   ssr: false,
 });
