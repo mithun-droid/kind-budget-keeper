@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BudgetGauge } from "@/components/app/BudgetGauge";
 import { SpendingPie } from "@/components/app/SpendingPie";
+import { BudgetPrediction } from "@/components/app/BudgetPrediction";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 import { AddMemberModal } from "@/components/family/AddMemberModal";
 import { InviteButton } from "@/components/family/InviteButton";
