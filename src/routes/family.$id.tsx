@@ -102,6 +102,13 @@ function FamilyDashboard() {
           <InviteButton familyId={family.id} familyName={family.name} budget={family.monthly_budget} onToast={showToast} />
           <button onClick={() => setAddOpen(true)} className="flex-1 py-2.5 rounded-full border text-sm font-medium">+ Member</button>
         </div>
+        <button
+          onClick={() => setAddExpenseOpen(true)}
+          className="mt-3 w-full max-w-xs py-3 rounded-full text-white font-medium text-sm shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2"
+          style={{ background: "var(--color-forest-deep)" }}
+        >
+          <span className="text-lg leading-none">＋</span> Add family expense
+        </button>
       </section>
 
       <section className="px-6 mt-8">
