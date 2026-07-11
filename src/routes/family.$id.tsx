@@ -184,6 +184,27 @@ function FamilyDashboard() {
 
       <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} familyId={family.id} onAdded={refresh} />
 
+      <AddTransactionSheet
+        open={addExpenseOpen}
+        onClose={() => setAddExpenseOpen(false)}
+        history={txs as any}
+        onSubmit={async (amount, category, note) => {
+          const uid = userId ?? (await supabase.auth.getSession()).data.session?.user?.id ?? null;
+          if (!uid) { showToast("Syncing…"); return; }
+          const myMember = members.find((m) => m.linked_user_id === uid);
+          const { error } = await supabase.from("transactions").insert({
+            user_id: uid,
+            family_id: family.id,
+            member_id: myMember?.id ?? null,
+            amount, category, note: note || null,
+            spent_at: new Date().toISOString(),
+          });
+          if (error) { console.error("[family tx] insert failed", error); showToast("Couldn't save"); return; }
+          showToast("Logged");
+          refresh();
+        }}
+      />
+
       {editOpen && (
         <EditFamilyModal
           family={family}
