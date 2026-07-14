@@ -210,10 +210,10 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
                 disabled={submitting}
                 className="mt-4 w-full flex items-center gap-3 p-3 rounded-2xl bg-foreground/5 border border-foreground/10 text-left transition-transform active:scale-[0.98] disabled:opacity-50"
               >
-                <span className="text-2xl">✨</span>
+                <span className="text-2xl">{suggestion.fromScan ? "📷" : "✨"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Suggested · {Math.round(suggestion.confidence * 100)}% match
+                    {suggestion.fromScan ? "From receipt scan" : `Suggested · ${Math.round(suggestion.confidence * 100)}% match`}
                   </div>
                   <div className="font-semibold text-sm">Likely: {categoryLabel(suggestion.category)}</div>
                 </div>
