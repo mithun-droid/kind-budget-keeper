@@ -123,8 +123,46 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
 
         {step === 1 ? (
           <div className="px-6 pb-6 pt-3">
-            <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Step 1 of 2</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Step 1 of 2</div>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={scanning}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-transform active:scale-95 disabled:opacity-60"
+                style={{ borderColor: "var(--color-forest-deep)", color: "var(--color-forest-deep)" }}
+              >
+                {scanning ? (
+                  <><span className="size-3 rounded-full border-2 border-current border-t-transparent animate-spin" /> Reading…</>
+                ) : (
+                  <>📷 Scan receipt</>
+                )}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => onScanFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
             <div className="mt-2 text-sm text-muted-foreground">How much did you spend?</div>
+            {preview && (
+              <div className="mt-3 flex items-center gap-3">
+                <img src={preview} alt="Receipt" className="size-14 rounded-lg object-cover border" />
+                <div className="text-[11px] text-muted-foreground leading-tight">
+                  {scannedCat ? (
+                    <>Read from receipt · category <b className="text-foreground">{categoryLabel(scannedCat)}</b> pre-selected.</>
+                  ) : (
+                    "Scanned image"
+                  )}
+                </div>
+              </div>
+            )}
+            {scanErr && (
+              <div className="mt-2 text-xs" style={{ color: "var(--color-danger)" }}>{scanErr}</div>
+            )}
             <div className="mt-4 flex items-baseline gap-1">
               <span className="text-3xl text-muted-foreground">₹</span>
               <span className="numeric text-6xl font-semibold tracking-tight">{amountStr || "0"}</span>
