@@ -1,12 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, categoryLabel, type Category } from "./categories";
 import { suggestCategory, type PredTx } from "@/lib/predictions";
+import { scanReceipt } from "@/lib/receipt.functions";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (amount: number, category: Category, note: string) => Promise<void>;
   history?: PredTx[];
+}
+
+// Downscale a picked image to keep payload small (<~1MB) and OCR fast.
+async function fileToScaledDataUrl(file: File, maxDim = 1600, quality = 0.82): Promise<string> {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+  const w = Math.round(bmp.width * scale);
+  const h = Math.round(bmp.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(bmp, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 const KEYS = ["1","2","3","4","5","6","7","8","9",".","0","⌫"];
@@ -16,20 +30,29 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
   const [amountStr, setAmountStr] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanErr, setScanErr] = useState<string | null>(null);
+  const [scannedCat, setScannedCat] = useState<Category | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setStep(1);
       setAmountStr("");
       setNote("");
+      setScanErr(null);
+      setScannedCat(null);
+      setPreview(null);
     }
   }, [open]);
 
   const amount = parseFloat(amountStr || "0");
-  const suggestion = useMemo(
-    () => (open && step === 2 && amount > 0 ? suggestCategory(amount, history) : null),
-    [open, step, amount, history],
-  );
+  const suggestion = useMemo(() => {
+    if (!open || step !== 2 || amount <= 0) return null;
+    if (scannedCat) return { category: scannedCat, confidence: 0.95, fromScan: true } as const;
+    return { ...suggestCategory(amount, history), fromScan: false } as const;
+  }, [open, step, amount, history, scannedCat]);
 
   if (!open) return null;
 
@@ -56,6 +79,30 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
     }
   };
 
+  const onScanFile = async (file: File | null) => {
+    if (!file) return;
+    setScanErr(null);
+    setScanning(true);
+    try {
+      const dataUrl = await fileToScaledDataUrl(file);
+      setPreview(dataUrl);
+      const result = await scanReceipt({ data: { imageDataUrl: dataUrl } });
+      if (!result.amount || result.amount <= 0) {
+        setScanErr("Couldn't read that — enter manually.");
+      } else {
+        setAmountStr(String(result.amount));
+        if (result.merchant) setNote(result.merchant);
+        setScannedCat(result.category as Category);
+      }
+    } catch (e: any) {
+      console.error("[scan] failed", e);
+      setScanErr(e?.message ?? "Scan failed — enter manually.");
+    } finally {
+      setScanning(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
@@ -77,8 +124,46 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
 
         {step === 1 ? (
           <div className="px-6 pb-6 pt-3">
-            <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Step 1 of 2</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Step 1 of 2</div>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={scanning}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-transform active:scale-95 disabled:opacity-60"
+                style={{ borderColor: "var(--color-forest-deep)", color: "var(--color-forest-deep)" }}
+              >
+                {scanning ? (
+                  <><span className="size-3 rounded-full border-2 border-current border-t-transparent animate-spin" /> Reading…</>
+                ) : (
+                  <>📷 Scan receipt</>
+                )}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => onScanFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
             <div className="mt-2 text-sm text-muted-foreground">How much did you spend?</div>
+            {preview && (
+              <div className="mt-3 flex items-center gap-3">
+                <img src={preview} alt="Receipt" className="size-14 rounded-lg object-cover border" />
+                <div className="text-[11px] text-muted-foreground leading-tight">
+                  {scannedCat ? (
+                    <>Read from receipt · category <b className="text-foreground">{categoryLabel(scannedCat)}</b> pre-selected.</>
+                  ) : (
+                    "Scanned image"
+                  )}
+                </div>
+              </div>
+            )}
+            {scanErr && (
+              <div className="mt-2 text-xs" style={{ color: "var(--color-danger)" }}>{scanErr}</div>
+            )}
             <div className="mt-4 flex items-baseline gap-1">
               <span className="text-3xl text-muted-foreground">₹</span>
               <span className="numeric text-6xl font-semibold tracking-tight">{amountStr || "0"}</span>
@@ -125,10 +210,10 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
                 disabled={submitting}
                 className="mt-4 w-full flex items-center gap-3 p-3 rounded-2xl bg-foreground/5 border border-foreground/10 text-left transition-transform active:scale-[0.98] disabled:opacity-50"
               >
-                <span className="text-2xl">✨</span>
+                <span className="text-2xl">{suggestion.fromScan ? "📷" : "✨"}</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Suggested · {Math.round(suggestion.confidence * 100)}% match
+                    {suggestion.fromScan ? "From receipt scan" : `Suggested · ${Math.round(suggestion.confidence * 100)}% match`}
                   </div>
                   <div className="font-semibold text-sm">Likely: {categoryLabel(suggestion.category)}</div>
                 </div>
