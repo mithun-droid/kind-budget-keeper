@@ -30,12 +30,20 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
   const [amountStr, setAmountStr] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanErr, setScanErr] = useState<string | null>(null);
+  const [scannedCat, setScannedCat] = useState<Category | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setStep(1);
       setAmountStr("");
       setNote("");
+      setScanErr(null);
+      setScannedCat(null);
+      setPreview(null);
     }
   }, [open]);
 
