@@ -1,12 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, categoryLabel, type Category } from "./categories";
 import { suggestCategory, type PredTx } from "@/lib/predictions";
+import { scanReceipt } from "@/lib/receipt.functions";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (amount: number, category: Category, note: string) => Promise<void>;
   history?: PredTx[];
+}
+
+// Downscale a picked image to keep payload small (<~1MB) and OCR fast.
+async function fileToScaledDataUrl(file: File, maxDim = 1600, quality = 0.82): Promise<string> {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+  const w = Math.round(bmp.width * scale);
+  const h = Math.round(bmp.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(bmp, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 const KEYS = ["1","2","3","4","5","6","7","8","9",".","0","⌫"];
