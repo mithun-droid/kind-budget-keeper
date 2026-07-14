@@ -78,6 +78,30 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
     }
   };
 
+  const onScanFile = async (file: File | null) => {
+    if (!file) return;
+    setScanErr(null);
+    setScanning(true);
+    try {
+      const dataUrl = await fileToScaledDataUrl(file);
+      setPreview(dataUrl);
+      const result = await scanReceipt({ data: { imageDataUrl: dataUrl } });
+      if (!result.amount || result.amount <= 0) {
+        setScanErr("Couldn't read that — enter manually.");
+      } else {
+        setAmountStr(String(result.amount));
+        if (result.merchant) setNote(result.merchant);
+        setScannedCat(result.category as Category);
+      }
+    } catch (e: any) {
+      console.error("[scan] failed", e);
+      setScanErr(e?.message ?? "Scan failed — enter manually.");
+    } finally {
+      setScanning(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div
