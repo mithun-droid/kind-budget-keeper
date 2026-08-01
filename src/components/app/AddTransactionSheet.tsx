@@ -159,16 +159,12 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
             <div className="flex items-center justify-between gap-2">
               <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Step 1 of 2</div>
               <div className="flex items-center gap-1.5">
-                {/* Labels (not JS .click()) so the picker opens natively, even inside iframes */}
-                <label
-                  htmlFor="receipt-camera"
-                  aria-disabled={scanning}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-transform active:scale-95"
+                <span
+                  className="relative inline-flex items-center gap-1.5 overflow-hidden rounded-full border px-3 py-1.5 text-xs font-medium transition-transform active:scale-95"
                   style={{
                     borderColor: "var(--color-forest-deep)",
                     color: "var(--color-forest-deep)",
                     opacity: scanning ? 0.6 : 1,
-                    pointerEvents: scanning ? "none" : undefined,
                   }}
                 >
                   {scanning ? (
@@ -176,32 +172,33 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
                   ) : (
                     <>📷 Scan receipt</>
                   )}
-                </label>
-                <label
-                  htmlFor="receipt-gallery"
-                  className="inline-flex items-center px-2.5 py-1.5 rounded-full border border-border text-xs text-muted-foreground cursor-pointer transition-transform active:scale-95"
-                  style={{ opacity: scanning ? 0.6 : 1, pointerEvents: scanning ? "none" : undefined }}
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    aria-label="Take a photo of a receipt"
+                    disabled={scanning}
+                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                    onChange={(e) => onScanFile(e.target.files?.[0] ?? null, e.target)}
+                  />
+                </span>
+                <span
+                  className="relative inline-flex items-center overflow-hidden rounded-full border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-transform active:scale-95"
+                  style={{ opacity: scanning ? 0.6 : 1 }}
                   title="Choose an existing photo"
                 >
                   🖼️
-                </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    aria-label="Choose a receipt photo"
+                    disabled={scanning}
+                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                    onChange={(e) => onScanFile(e.target.files?.[0] ?? null, e.target)}
+                  />
+                </span>
               </div>
-              <input
-                id="receipt-camera"
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="sr-only absolute size-px opacity-0"
-                onChange={(e) => onScanFile(e.target.files?.[0] ?? null, e.target)}
-              />
-              <input
-                id="receipt-gallery"
-                type="file"
-                accept="image/*"
-                className="sr-only absolute size-px opacity-0"
-                onChange={(e) => onScanFile(e.target.files?.[0] ?? null, e.target)}
-              />
             </div>
 
             <div className="mt-2 text-sm text-muted-foreground">How much did you spend?</div>
