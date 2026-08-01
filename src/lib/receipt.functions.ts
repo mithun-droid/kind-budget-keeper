@@ -13,42 +13,60 @@ export const scanReceipt = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
-    const systemPrompt = `You are a receipt/bill OCR assistant. Extract structured data from the receipt image.
+    const systemPrompt = `You are an expert receipt/bill OCR engine. Read the image carefully, line by line, before answering.
 
-Return ONLY a JSON object with these exact fields:
-- amount: number (the final total the customer paid, in local currency units; look for "Total", "Grand Total", "Amount Paid", "Net Payable"; prefer the largest total. No currency symbol.)
-- merchant: string (store/vendor name, max 40 chars. If unknown, use "").
-- category: one of "fixed_bills" | "daily_living" | "shopping" | "unplanned"
-    * fixed_bills: rent, electricity, water, gas, internet, mobile, insurance, EMI, subscriptions
-    * daily_living: groceries, food, restaurants, cafe, transport, fuel, milk, vegetables
-    * shopping: clothing, electronics, gadgets, home goods, gifts
-    * unplanned: entertainment, treats, one-off surprises
-- date: ISO date string YYYY-MM-DD if visible on receipt, otherwise "".
+Method (follow strictly):
+1. Transcribe every legible line of the receipt mentally, including small print and faint thermal-printer text.
+2. Locate the FINAL amount the customer actually paid. Look for labels like Total, Grand Total, Nett Total, Amount Paid, Net Payable, Balance Due, Amount Due, Card/UPI/Cash tendered.
+   - Ignore Subtotal, Tax/GST/CGST/SGST/VAT lines, discounts, MRP, "you saved", per-item prices, change/return amounts and loyalty points.
+   - If both a total and a rounded "Net Payable" exist, use the rounded final payable.
+   - Indian receipts often print ₹, Rs., Rs or INR. Strip symbols, commas and spaces. "1,234.50" -> 1234.5.
+   - Never invent a value. If no total is legible, use 0.
+3. Merchant = the business name, usually the largest text at the top (not the address, GSTIN, phone, or "Tax Invoice"). Max 40 chars, title case.
+4. Date = the transaction/invoice date. Convert DD/MM/YYYY or DD-MM-YY (common in India) to YYYY-MM-DD. If ambiguous or missing, use "".
+5. Category — choose the single best fit from the merchant name and the purchased items:
+   * fixed_bills: rent, electricity, water, gas cylinder, internet/broadband, mobile recharge, DTH, insurance, EMI/loan, school fees, subscriptions
+   * daily_living: groceries, kirana, supermarket, vegetables, milk, food, restaurants, cafe, tea, fuel/petrol, auto/cab/metro/bus, medicines, pharmacy
+   * shopping: clothing, footwear, electronics, gadgets, furniture, home goods, cosmetics, gifts
+   * unplanned: movies, entertainment, bars, gaming, impulse treats, one-off surprises
 
-If the image is not a receipt or unreadable, return {"amount":0,"merchant":"","category":"daily_living","date":""}.
-Respond with ONLY the JSON object, no prose, no markdown.`;
+Return ONLY this JSON object (no prose, no markdown fences):
+{"amount": <number>, "merchant": "<string>", "category": "fixed_bills|daily_living|shopping|unplanned", "date": "YYYY-MM-DD or empty string", "confidence": <0-1 number>}
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Extract the receipt data as JSON." },
-              { type: "image_url", image_url: { url: data.imageDataUrl } },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+If the image is not a receipt or is unreadable, return {"amount":0,"merchant":"","category":"daily_living","date":"","confidence":0}.`;
+
+    const callModel = async (model: string) =>
+      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0,
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Read this receipt end to end and extract the final paid total, merchant, date and category as JSON.",
+                },
+                { type: "image_url", image_url: { url: data.imageDataUrl, detail: "high" } },
+              ],
+            },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+
+    // Prefer the stronger vision model; fall back to flash if unavailable.
+    let res = await callModel("google/gemini-2.5-pro");
+    if (res.status === 400 || res.status === 404) {
+      res = await callModel("google/gemini-2.5-flash");
+    }
 
     if (!res.ok) {
       const body = await res.text();
@@ -68,10 +86,14 @@ Respond with ONLY the JSON object, no prose, no markdown.`;
       if (m) { try { parsed = JSON.parse(m[0]); } catch { parsed = {}; } }
     }
 
-    const amount = Number(parsed.amount) || 0;
-    const merchant = String(parsed.merchant ?? "").slice(0, 40);
+    const rawAmount = typeof parsed.amount === "string"
+      ? parsed.amount.replace(/[^0-9.]/g, "")
+      : parsed.amount;
+    const amount = Math.round((Number(rawAmount) || 0) * 100) / 100;
+    const merchant = String(parsed.merchant ?? "").trim().slice(0, 40);
     const category = CATS.includes(parsed.category) ? parsed.category : "daily_living";
     const date = typeof parsed.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ? parsed.date : "";
+    const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
 
-    return { amount, merchant, category, date };
+    return { amount, merchant, category, date, confidence };
   });
