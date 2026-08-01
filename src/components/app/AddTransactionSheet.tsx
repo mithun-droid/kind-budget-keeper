@@ -10,16 +10,46 @@ interface Props {
   history?: PredTx[];
 }
 
-// Downscale a picked image to keep payload small (<~1MB) and OCR fast.
-async function fileToScaledDataUrl(file: File, maxDim = 1600, quality = 0.82): Promise<string> {
+// Prepare a picked image for OCR: keep high resolution, sharpen contrast so
+// faint thermal-printer text stays legible, and encode at high quality.
+async function fileToScaledDataUrl(file: File, maxDim = 2400, quality = 0.95): Promise<string> {
   const bmp = await createImageBitmap(file);
+  // Never upscale, but keep small photos at native size for maximum detail.
   const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
-  const w = Math.round(bmp.width * scale);
-  const h = Math.round(bmp.height * scale);
+  const w = Math.max(1, Math.round(bmp.width * scale));
+  const h = Math.max(1, Math.round(bmp.height * scale));
   const canvas = document.createElement("canvas");
   canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bmp, 0, 0, w, h);
+  bmp.close?.();
+
+  // Light contrast/brightness normalisation — big accuracy win on receipts.
+  try {
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    // Sample luminance to find black/white points.
+    let min = 255, max = 0;
+    for (let i = 0; i < d.length; i += 4 * 37) {
+      const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (l < min) min = l;
+      if (l > max) max = l;
+    }
+    const range = Math.max(1, max - min);
+    if (range < 250) {
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = Math.min(255, Math.max(0, ((d[i] - min) * 255) / range));
+        d[i + 1] = Math.min(255, Math.max(0, ((d[i + 1] - min) * 255) / range));
+        d[i + 2] = Math.min(255, Math.max(0, ((d[i + 2] - min) * 255) / range));
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+  } catch {
+    // Canvas may be tainted on some browsers — fall back to the plain render.
+  }
+
   return canvas.toDataURL("image/jpeg", quality);
 }
 
@@ -79,7 +109,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
     }
   };
 
-  const onScanFile = async (file: File | null) => {
+  const onScanFile = async (file: File | null, input?: HTMLInputElement) => {
     if (!file) return;
     setScanErr(null);
     setScanning(true);
@@ -88,7 +118,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
       setPreview(dataUrl);
       const result = await scanReceipt({ data: { imageDataUrl: dataUrl } });
       if (!result.amount || result.amount <= 0) {
-        setScanErr("Couldn't read that — enter manually.");
+        setScanErr("Couldn't read that — try a brighter, flatter photo or enter manually.");
       } else {
         setAmountStr(String(result.amount));
         if (result.merchant) setNote(result.merchant);
@@ -99,9 +129,11 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
       setScanErr(e?.message ?? "Scan failed — enter manually.");
     } finally {
       setScanning(false);
+      if (input) input.value = "";
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -126,28 +158,52 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
           <div className="px-6 pb-6 pt-3">
             <div className="flex items-center justify-between gap-2">
               <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Step 1 of 2</div>
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={scanning}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-transform active:scale-95 disabled:opacity-60"
-                style={{ borderColor: "var(--color-forest-deep)", color: "var(--color-forest-deep)" }}
-              >
-                {scanning ? (
-                  <><span className="size-3 rounded-full border-2 border-current border-t-transparent animate-spin" /> Reading…</>
-                ) : (
-                  <>📷 Scan receipt</>
-                )}
-              </button>
+              <div className="flex items-center gap-1.5">
+                {/* Labels (not JS .click()) so the picker opens natively, even inside iframes */}
+                <label
+                  htmlFor="receipt-camera"
+                  aria-disabled={scanning}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-transform active:scale-95"
+                  style={{
+                    borderColor: "var(--color-forest-deep)",
+                    color: "var(--color-forest-deep)",
+                    opacity: scanning ? 0.6 : 1,
+                    pointerEvents: scanning ? "none" : undefined,
+                  }}
+                >
+                  {scanning ? (
+                    <><span className="size-3 rounded-full border-2 border-current border-t-transparent animate-spin" /> Reading…</>
+                  ) : (
+                    <>📷 Scan receipt</>
+                  )}
+                </label>
+                <label
+                  htmlFor="receipt-gallery"
+                  className="inline-flex items-center px-2.5 py-1.5 rounded-full border border-border text-xs text-muted-foreground cursor-pointer transition-transform active:scale-95"
+                  style={{ opacity: scanning ? 0.6 : 1, pointerEvents: scanning ? "none" : undefined }}
+                  title="Choose an existing photo"
+                >
+                  🖼️
+                </label>
+              </div>
               <input
+                id="receipt-camera"
                 ref={fileRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
-                className="hidden"
-                onChange={(e) => onScanFile(e.target.files?.[0] ?? null)}
+                className="sr-only absolute size-px opacity-0"
+                onChange={(e) => onScanFile(e.target.files?.[0] ?? null, e.target)}
+              />
+              <input
+                id="receipt-gallery"
+                type="file"
+                accept="image/*"
+                className="sr-only absolute size-px opacity-0"
+                onChange={(e) => onScanFile(e.target.files?.[0] ?? null, e.target)}
               />
             </div>
+
             <div className="mt-2 text-sm text-muted-foreground">How much did you spend?</div>
             {preview && (
               <div className="mt-3 flex items-center gap-3">
