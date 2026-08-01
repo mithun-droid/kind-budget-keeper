@@ -109,7 +109,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
     }
   };
 
-  const onScanFile = async (file: File | null) => {
+  const onScanFile = async (file: File | null, input?: HTMLInputElement) => {
     if (!file) return;
     setScanErr(null);
     setScanning(true);
@@ -118,7 +118,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
       setPreview(dataUrl);
       const result = await scanReceipt({ data: { imageDataUrl: dataUrl } });
       if (!result.amount || result.amount <= 0) {
-        setScanErr("Couldn't read that — enter manually.");
+        setScanErr("Couldn't read that — try a brighter, flatter photo or enter manually.");
       } else {
         setAmountStr(String(result.amount));
         if (result.merchant) setNote(result.merchant);
@@ -129,9 +129,11 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
       setScanErr(e?.message ?? "Scan failed — enter manually.");
     } finally {
       setScanning(false);
+      if (input) input.value = "";
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
