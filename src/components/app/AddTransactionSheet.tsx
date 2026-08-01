@@ -10,16 +10,46 @@ interface Props {
   history?: PredTx[];
 }
 
-// Downscale a picked image to keep payload small (<~1MB) and OCR fast.
-async function fileToScaledDataUrl(file: File, maxDim = 1600, quality = 0.82): Promise<string> {
+// Prepare a picked image for OCR: keep high resolution, sharpen contrast so
+// faint thermal-printer text stays legible, and encode at high quality.
+async function fileToScaledDataUrl(file: File, maxDim = 2400, quality = 0.95): Promise<string> {
   const bmp = await createImageBitmap(file);
+  // Never upscale, but keep small photos at native size for maximum detail.
   const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
-  const w = Math.round(bmp.width * scale);
-  const h = Math.round(bmp.height * scale);
+  const w = Math.max(1, Math.round(bmp.width * scale));
+  const h = Math.max(1, Math.round(bmp.height * scale));
   const canvas = document.createElement("canvas");
   canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bmp, 0, 0, w, h);
+  bmp.close?.();
+
+  // Light contrast/brightness normalisation — big accuracy win on receipts.
+  try {
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    // Sample luminance to find black/white points.
+    let min = 255, max = 0;
+    for (let i = 0; i < d.length; i += 4 * 37) {
+      const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (l < min) min = l;
+      if (l > max) max = l;
+    }
+    const range = Math.max(1, max - min);
+    if (range < 250) {
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = Math.min(255, Math.max(0, ((d[i] - min) * 255) / range));
+        d[i + 1] = Math.min(255, Math.max(0, ((d[i + 1] - min) * 255) / range));
+        d[i + 2] = Math.min(255, Math.max(0, ((d[i + 2] - min) * 255) / range));
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+  } catch {
+    // Canvas may be tainted on some browsers — fall back to the plain render.
+  }
+
   return canvas.toDataURL("image/jpeg", quality);
 }
 
