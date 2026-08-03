@@ -62,11 +62,12 @@ If the image is not a receipt or is unreadable, return {"amount":0,"merchant":""
         }),
       });
 
-    // Prefer the stronger vision model; fall back to flash if unavailable.
-    let res = await callModel("google/gemini-2.5-pro");
+    // Fast, high-accuracy vision default; escalate only if it fails.
+    let res = await callModel("google/gemini-3.6-flash");
     if (res.status === 400 || res.status === 404) {
       res = await callModel("google/gemini-2.5-flash");
     }
+
 
     if (!res.ok) {
       const body = await res.text();
