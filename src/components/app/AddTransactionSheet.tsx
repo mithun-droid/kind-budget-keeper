@@ -107,7 +107,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
     setScanErr(null);
     setScanning(true);
     try {
-      const dataUrl = await fileToScaledDataUrl(file);
+      const dataUrl = await preprocessReceipt(file);
       setPreview(dataUrl);
       const result = await scanReceipt({ data: { imageDataUrl: dataUrl } });
       if (!result.amount || result.amount <= 0) {
