@@ -260,7 +260,7 @@ function Dashboard() {
             {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
           </div>
           <h1 className="text-2xl font-semibold tracking-tight truncate">
-            {families.length === 0 ? "Your Personal Budget" : "Your month"}
+            {families.length === 0 ? "💰 Your Personal Budget" : "📅 Your month"}
           </h1>
         </div>
         <Link
@@ -276,14 +276,14 @@ function Dashboard() {
 
         <div className="mt-6 grid grid-cols-2 gap-3 w-full max-w-xs">
           <div className="card-soft px-4 py-3 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Spent</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">💸 Spent</div>
             <div className="numeric mt-1 text-lg font-semibold">{fmt(spent)}</div>
           </div>
           <button
             onClick={() => { setBudgetInput(String(budget)); setEditingBudget(true); }}
             className="card-soft px-4 py-3 text-center transition-transform active:scale-95"
           >
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Budget</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">🎯 Budget</div>
             <div className="numeric mt-1 text-lg font-semibold">{fmt(budget)}</div>
           </button>
         </div>
@@ -301,11 +301,11 @@ function Dashboard() {
       <section className="px-6 mt-6">
         <div className="card-soft p-6">
           <header className="flex items-baseline justify-between mb-4">
-            <h2 className="text-lg font-semibold tracking-tight">Recent</h2>
+            <h2 className="text-lg font-semibold tracking-tight">🧾 Recent</h2>
             <span className="text-xs text-muted-foreground">{transactions.length} this month</span>
           </header>
           {transactions.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Nothing logged yet. Tap + to start.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">✨ Nothing logged yet. Tap ＋ to start.</p>
           ) : (
             <ul className="divide-y divide-border">
               {transactions.slice(0, 8).map((t) => (
@@ -337,7 +337,7 @@ function Dashboard() {
       <section className="px-6 mt-6">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-lg font-semibold tracking-tight">
-            {families.length === 0 ? "Family budgets" : "Your families"}
+            {families.length === 0 ? "👨‍👩‍👧 Family budgets" : "👨‍👩‍👧 Your families"}
           </h2>
           {families.length > 0 && (
             <button onClick={() => setCreateFamOpen(true)} className="text-xs font-medium text-[var(--color-forest-deep)]">+ New</button>
@@ -449,7 +449,7 @@ function Dashboard() {
         <div className="fixed inset-0 z-50 grid place-items-center px-6">
           <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setEditingBudget(false)} />
           <div className="relative w-full max-w-sm card-soft p-6 animate-pop">
-            <h3 className="text-lg font-semibold tracking-tight">Monthly budget</h3>
+            <h3 className="text-lg font-semibold tracking-tight">🎯 Monthly budget</h3>
             <p className="text-xs text-muted-foreground mt-1">A calm ceiling for the whole month.</p>
             <div className="mt-5 flex items-baseline gap-2">
               <span className="text-2xl text-muted-foreground">₹</span>

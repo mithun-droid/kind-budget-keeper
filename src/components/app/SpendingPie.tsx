@@ -33,13 +33,13 @@ export function SpendingPie({ transactions }: Props) {
     <section className="px-6 mt-6">
       <div className="card-soft p-6">
         <header className="flex items-baseline justify-between mb-4">
-          <h2 className="text-lg font-semibold tracking-tight">Where it goes</h2>
+          <h2 className="text-lg font-semibold tracking-tight">🥧 Where it goes</h2>
           <span className="text-xs text-muted-foreground">This month</span>
         </header>
 
         {data.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No spending logged yet.
+            🍃 No spending logged yet.
           </p>
         ) : (
           <div className="flex items-center gap-5">
