@@ -156,13 +156,15 @@ function Dashboard() {
   };
 
   const addTransaction = async (amount: number, category: Category, note: string) => {
-    let uid = userId;
-    if (!uid) {
-      uid = await ensureSession();
-      if (!uid) { showToast("Couldn't connect — check your internet"); return; }
+    // Always read the live session id — a cached id can belong to a superseded
+    // session and would be rejected by row-level security.
+    const uid = await ensureSession();
+    if (!uid) { showToast("Couldn't connect — check your internet"); return; }
+    if (uid !== userId) {
       setUserId(uid);
       await supabase.from("profiles").upsert({ id: uid }, { onConflict: "id" });
     }
+
     const spent_at = new Date().toISOString();
     const { data, error } = await supabase
       .from("transactions")
