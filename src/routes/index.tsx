@@ -144,18 +144,25 @@ function Dashboard() {
   };
 
   const addTransaction = async (amount: number, category: Category, note: string) => {
-    if (!userId) { showToast("Syncing…"); return; }
+    let uid = userId;
+    if (!uid) {
+      uid = await ensureSession();
+      if (!uid) { showToast("Couldn't connect — check your internet"); return; }
+      setUserId(uid);
+      await supabase.from("profiles").upsert({ id: uid }, { onConflict: "id" });
+    }
     const spent_at = new Date().toISOString();
     const { data, error } = await supabase
       .from("transactions")
-      .insert({ user_id: userId, amount, category, note: note || null, spent_at })
+      .insert({ user_id: uid, amount, category, note: note || null, spent_at })
       .select("id, amount, category, note, spent_at")
       .single();
     if (error || !data) {
       console.error("[tx] insert failed", error);
-      showToast("Couldn't save");
+      showToast("Couldn't save — check your connection");
       return;
     }
+
     setAllTx((prev) => [{
       id: data.id,
       amount: Number(data.amount),

@@ -209,8 +209,12 @@ function FamilyDashboard() {
         onClose={() => setAddExpenseOpen(false)}
         history={txs as any}
         onSubmit={async (amount, category, note) => {
-          const uid = userId ?? (await supabase.auth.getSession()).data.session?.user?.id ?? null;
-          if (!uid) { showToast("Syncing…"); return; }
+          let uid = userId ?? (await supabase.auth.getSession()).data.session?.user?.id ?? null;
+          if (!uid) {
+            const { data: signIn } = await supabase.auth.signInAnonymously();
+            uid = signIn?.user?.id ?? null;
+          }
+          if (!uid) { showToast("Couldn't connect — check your internet"); return; }
           const myMember = members.find((m) => m.linked_user_id === uid);
           const { error } = await supabase.from("transactions").insert({
             user_id: uid,
@@ -219,7 +223,8 @@ function FamilyDashboard() {
             amount, category, note: note || null,
             spent_at: new Date().toISOString(),
           });
-          if (error) { console.error("[family tx] insert failed", error); showToast("Couldn't save"); return; }
+          if (error) { console.error("[family tx] insert failed", error); showToast("Couldn't save — check your connection"); return; }
+
           showToast("Logged");
           refresh();
         }}
