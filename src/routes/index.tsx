@@ -45,16 +45,28 @@ function weekStart(offsetWeeks = 0) {
   return d;
 }
 
+let sessionPromise: Promise<string | null> | null = null;
+
 async function ensureSession(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   if (data.session?.user) return data.session.user.id;
-  const { data: signIn, error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    console.error("[auth] anonymous sign-in failed", error);
-    return null;
+  // De-duplicate concurrent sign-ins: two parallel calls would mint two different
+  // anonymous users and the stale one fails row-level security on insert.
+  if (!sessionPromise) {
+    sessionPromise = (async () => {
+      const { data: signIn, error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        console.error("[auth] anonymous sign-in failed", error);
+        return null;
+      }
+      return signIn.user?.id ?? null;
+    })().finally(() => {
+      setTimeout(() => { sessionPromise = null; }, 0);
+    });
   }
-  return signIn.user?.id ?? null;
+  return sessionPromise;
 }
+
 
 interface FamilySummary {
   id: string; name: string; monthly_budget: number; spent: number; member_count: number;
@@ -144,18 +156,27 @@ function Dashboard() {
   };
 
   const addTransaction = async (amount: number, category: Category, note: string) => {
-    if (!userId) { showToast("Syncing…"); return; }
+    // Always read the live session id — a cached id can belong to a superseded
+    // session and would be rejected by row-level security.
+    const uid = await ensureSession();
+    if (!uid) { showToast("Couldn't connect — check your internet"); return; }
+    if (uid !== userId) {
+      setUserId(uid);
+      await supabase.from("profiles").upsert({ id: uid }, { onConflict: "id" });
+    }
+
     const spent_at = new Date().toISOString();
     const { data, error } = await supabase
       .from("transactions")
-      .insert({ user_id: userId, amount, category, note: note || null, spent_at })
+      .insert({ user_id: uid, amount, category, note: note || null, spent_at })
       .select("id, amount, category, note, spent_at")
       .single();
     if (error || !data) {
       console.error("[tx] insert failed", error);
-      showToast("Couldn't save");
+      showToast("Couldn't save — check your connection");
       return;
     }
+
     setAllTx((prev) => [{
       id: data.id,
       amount: Number(data.amount),
