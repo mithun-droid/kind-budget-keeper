@@ -45,16 +45,28 @@ function weekStart(offsetWeeks = 0) {
   return d;
 }
 
+let sessionPromise: Promise<string | null> | null = null;
+
 async function ensureSession(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   if (data.session?.user) return data.session.user.id;
-  const { data: signIn, error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    console.error("[auth] anonymous sign-in failed", error);
-    return null;
+  // De-duplicate concurrent sign-ins: two parallel calls would mint two different
+  // anonymous users and the stale one fails row-level security on insert.
+  if (!sessionPromise) {
+    sessionPromise = (async () => {
+      const { data: signIn, error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        console.error("[auth] anonymous sign-in failed", error);
+        return null;
+      }
+      return signIn.user?.id ?? null;
+    })().finally(() => {
+      setTimeout(() => { sessionPromise = null; }, 0);
+    });
   }
-  return signIn.user?.id ?? null;
+  return sessionPromise;
 }
+
 
 interface FamilySummary {
   id: string; name: string; monthly_budget: number; spent: number; member_count: number;
