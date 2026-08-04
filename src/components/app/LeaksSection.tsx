@@ -13,13 +13,13 @@ export function LeaksSection({ leaks }: { leaks: Leak[] }) {
   return (
     <section className="card-soft p-6">
       <header className="mb-5">
-        <h2 className="text-lg font-semibold tracking-tight">Where is the money going?</h2>
-        <p className="text-xs text-muted-foreground mt-1">Top 3 leaks this week vs. last week.</p>
+        <h2 className="text-lg font-semibold tracking-tight">🔍 Where is the money going?</h2>
+        <p className="text-xs text-muted-foreground mt-1">Top 3 leaks this week vs. last week. 💸</p>
       </header>
 
       {leaks.length === 0 ? (
         <div className="py-10 text-center text-sm text-muted-foreground">
-          No spending yet this week. A calm start.
+          🌱 No spending yet this week. A calm start.
         </div>
       ) : (
         <ul className="space-y-4">

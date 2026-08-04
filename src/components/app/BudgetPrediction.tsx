@@ -16,7 +16,7 @@ export function BudgetPrediction({ transactions, budget }: { transactions: PredT
     <section className="px-6 mt-6 space-y-4">
       <div className="card-soft p-6">
         <header className="flex items-baseline justify-between mb-3">
-          <h2 className="text-lg font-semibold tracking-tight">Forecast</h2>
+          <h2 className="text-lg font-semibold tracking-tight">🔮 Forecast</h2>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Day {forecast.daysElapsed} / {forecast.daysInMonth}
           </span>
@@ -35,16 +35,16 @@ export function BudgetPrediction({ transactions, budget }: { transactions: PredT
 
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Daily pace</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">⚡ Daily pace</div>
             <div className="numeric mt-1 text-sm font-semibold">{fmt(forecast.dailyRate)}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Projected</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">🎯 Projected</div>
             <div className="numeric mt-1 text-sm font-semibold">{fmt(forecast.projected)}</div>
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {forecast.onTrack ? "Saving" : "Over"}
+              {forecast.onTrack ? "🌿 Saving" : "🔥 Over"}
             </div>
             <div
               className="numeric mt-1 text-sm font-semibold"
@@ -69,7 +69,7 @@ export function BudgetPrediction({ transactions, budget }: { transactions: PredT
       {warnings.length > 0 && (
         <div className="card-soft p-6">
           <header className="mb-4">
-            <h2 className="text-lg font-semibold tracking-tight">Category watch</h2>
+            <h2 className="text-lg font-semibold tracking-tight">👀 Category watch</h2>
             <p className="text-xs text-muted-foreground mt-1">Trending above your usual pace.</p>
           </header>
           <ul className="space-y-3">
