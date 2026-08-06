@@ -10,6 +10,7 @@ import { InviteButton } from "@/components/family/InviteButton";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtINR, ringStatus } from "@/lib/family";
+import { isGuest, setGuest, useSession } from "@/hooks/use-session";
 
 export const Route = createFileRoute("/")({
   head: () => ({
