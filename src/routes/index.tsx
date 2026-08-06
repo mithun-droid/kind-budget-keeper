@@ -10,6 +10,7 @@ import { InviteButton } from "@/components/family/InviteButton";
 import { categoryEmoji, categoryLabel, type Category } from "@/components/app/categories";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtINR, ringStatus } from "@/lib/family";
+import { isGuest, setGuest, useSession } from "@/hooks/use-session";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -74,6 +75,12 @@ interface FamilySummary {
 
 function Dashboard() {
   const navigate = useNavigate();
+  const session = useSession();
+  const signOut = async () => {
+    setGuest(false);
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
   const [open, setOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
@@ -119,6 +126,12 @@ function Dashboard() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const { data: existing } = await supabase.auth.getSession();
+      const signedIn = existing.session?.user && !existing.session.user.is_anonymous;
+      if (!signedIn && !isGuest()) {
+        navigate({ to: "/auth", replace: true });
+        return;
+      }
       const uid = await ensureSession();
       if (!uid || cancelled) return;
       setUserId(uid);
@@ -249,9 +262,32 @@ function Dashboard() {
           <div className="font-semibold tracking-tight">SpendWise</div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: "color-mix(in oklab, var(--color-forest) 14%, transparent)", color: "var(--color-forest-deep)" }}>Dashboard</span>
-          <div className="size-8 rounded-full bg-muted grid place-items-center text-xs font-semibold">👤</div>
+          {session.email ? (
+            <>
+              <span className="hidden sm:inline max-w-[9rem] truncate text-xs text-muted-foreground">{session.email}</span>
+              <button
+                type="button"
+                onClick={signOut}
+                className="px-3 py-1.5 rounded-full border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+              >
+                Log Out
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>👤 Guest</span>
+              <button
+                type="button"
+                onClick={signOut}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ background: "var(--color-forest-deep)" }}
+              >
+                Sign in
+              </button>
+            </>
+          )}
         </div>
+
       </div>
 
       <header className="px-6 pt-6 pb-2 flex items-start justify-between gap-3">
