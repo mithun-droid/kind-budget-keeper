@@ -75,6 +75,12 @@ interface FamilySummary {
 
 function Dashboard() {
   const navigate = useNavigate();
+  const session = useSession();
+  const signOut = async () => {
+    setGuest(false);
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
   const [open, setOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
