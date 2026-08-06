@@ -119,6 +119,12 @@ function Dashboard() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const { data: existing } = await supabase.auth.getSession();
+      const signedIn = existing.session?.user && !existing.session.user.is_anonymous;
+      if (!signedIn && !isGuest()) {
+        navigate({ to: "/auth", replace: true });
+        return;
+      }
       const uid = await ensureSession();
       if (!uid || cancelled) return;
       setUserId(uid);
