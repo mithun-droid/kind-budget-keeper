@@ -121,24 +121,96 @@ function AuthScreen() {
           <p className="mt-1 text-sm text-muted-foreground">Calm budgets for you and your family 🌿</p>
         </div>
 
-        <div className="mt-8 card-soft p-1.5 grid grid-cols-2 gap-1 rounded-2xl">
-          {(["login", "signup"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className="py-2.5 rounded-xl text-sm font-medium transition-colors"
-              style={
-                mode === m
-                  ? { background: "var(--color-forest-deep)", color: "white" }
-                  : { color: "var(--color-muted-foreground)" }
-              }
-            >
-              {m === "login" ? "Log In" : "Sign Up"}
-            </button>
-          ))}
-        </div>
+        {mode !== "forgot" && (
+          <div className="mt-8 card-soft p-1.5 grid grid-cols-2 gap-1 rounded-2xl">
+            {(["login", "signup"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className="py-2.5 rounded-xl text-sm font-medium transition-colors"
+                style={
+                  mode === m
+                    ? { background: "var(--color-forest-deep)", color: "white" }
+                    : { color: "var(--color-muted-foreground)" }
+                }
+              >
+                {m === "login" ? "Log In" : "Sign Up"}
+              </button>
+            ))}
+          </div>
+        )}
 
+        {mode === "forgot" ? (
+          resetSent ? (
+            <div className="mt-8 card-soft p-6 text-center">
+              <div className="text-2xl">📬</div>
+              <h2 className="mt-2 text-lg font-semibold tracking-tight">Check your inbox</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                If an account exists for that email, we've sent a reset link. Check your inbox.
+              </p>
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                className="mt-5 w-full rounded-2xl py-3 text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                Back to log in
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={sendReset} className="mt-8 card-soft p-5 flex flex-col gap-4">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">Reset password</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  We'll email you a link to choose a new password.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="reset-email" className="text-xs font-medium text-muted-foreground">Email Address</label>
+                <input
+                  id="reset-email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className={`mt-1.5 ${inputCls}`}
+                />
+              </div>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-2xl px-4 py-3 text-sm font-medium"
+                  style={{
+                    background: "color-mix(in oklab, var(--color-danger) 12%, transparent)",
+                    color: "var(--color-danger)",
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="mt-1 w-full rounded-2xl py-3.5 text-[15px] font-semibold text-white transition-opacity disabled:opacity-60"
+                style={{ background: "var(--color-forest-deep)" }}
+              >
+                {busy ? "Please wait…" : "Send reset link"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                className="w-full text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                Back to log in
+              </button>
+            </form>
+          )
+        ) : (
         <form onSubmit={submit} className="mt-5 card-soft p-5 flex flex-col gap-4">
           <div>
             <label htmlFor="email" className="text-xs font-medium text-muted-foreground">Email Address</label>
@@ -175,6 +247,15 @@ function AuthScreen() {
                 {showPw ? "Hide" : "Show"}
               </button>
             </div>
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={() => setMode("forgot")}
+                className="mt-2 text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-4"
+              >
+                Forgot password?
+              </button>
+            )}
           </div>
 
           {error && (
@@ -199,6 +280,7 @@ function AuthScreen() {
             {busy ? "Please wait…" : mode === "login" ? "Log In" : "Create Account"}
           </button>
         </form>
+        )}
 
         <button
           type="button"
