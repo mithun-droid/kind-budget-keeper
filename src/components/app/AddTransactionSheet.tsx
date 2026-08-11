@@ -28,6 +28,10 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
   const [cameraShot, setCameraShot] = useState<string | null>(null);
+  const [recurring, setRecurring] = useState(false);
+  const [frequency, setFrequency] = useState<"monthly" | "weekly">("monthly");
+  const [dayOfMonth, setDayOfMonth] = useState(new Date().getDate());
+  const [dayOfWeek, setDayOfWeek] = useState(new Date().getDay());
   const fileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -54,6 +58,10 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
       setPreview(null);
       setCameraOpen(false);
       setCameraShot(null);
+      setRecurring(false);
+      setFrequency("monthly");
+      setDayOfMonth(new Date().getDate());
+      setDayOfWeek(new Date().getDay());
     } else {
       stopCamera();
     }
@@ -97,7 +105,12 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
     if (submitting || amount <= 0) return;
     setSubmitting(true);
     try {
-      await onSubmit(amount, c, note.trim());
+      await onSubmit(
+        amount,
+        c,
+        note.trim(),
+        recurring ? { frequency, dayOfMonth, dayOfWeek } : null,
+      );
       onClose();
     } finally {
       setSubmitting(false);
@@ -382,6 +395,97 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
               </button>
             )}
 
+
+            <div className="mt-5 rounded-2xl border border-border p-4">
+              <label className="flex items-center justify-between gap-3 cursor-pointer">
+                <span className="min-w-0">
+                  <span className="block font-semibold text-sm">🔁 Make recurring</span>
+                  <span className="block text-[11px] text-muted-foreground leading-tight">Log this automatically every cycle.</span>
+                </span>
+                <span
+                  className="relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors"
+                  style={{ background: recurring ? "var(--color-forest-deep)" : "var(--color-border)" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={recurring}
+                    onChange={(e) => setRecurring(e.target.checked)}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    aria-label="Make recurring"
+                  />
+                  <span
+                    className="pointer-events-none absolute top-0.5 size-5 rounded-full bg-background shadow transition-all"
+                    style={{ left: recurring ? "1.375rem" : "0.125rem" }}
+                  />
+                </span>
+              </label>
+
+              {recurring && (
+                <div className="mt-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["monthly", "weekly"] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setFrequency(f)}
+                        className="py-2 rounded-xl border text-xs font-medium capitalize transition-colors"
+                        style={
+                          frequency === f
+                            ? { borderColor: "var(--color-forest-deep)", color: "var(--color-forest-deep)", background: "color-mix(in oklab, var(--color-forest-deep) 8%, transparent)" }
+                            : undefined
+                        }
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+
+                  {frequency === "monthly" ? (
+                    <div className="mt-3">
+                      <div className="text-[11px] text-muted-foreground">Day of month</div>
+                      <div className="mt-2 grid grid-cols-7 gap-1.5 max-h-36 overflow-y-auto">
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setDayOfMonth(d)}
+                            className="numeric h-8 rounded-lg border text-xs transition-colors"
+                            style={
+                              dayOfMonth === d
+                                ? { borderColor: "var(--color-forest-deep)", color: "var(--color-forest-deep)", background: "color-mix(in oklab, var(--color-forest-deep) 8%, transparent)" }
+                                : undefined
+                            }
+                          >
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <div className="text-[11px] text-muted-foreground">Day of week</div>
+                      <div className="mt-2 grid grid-cols-7 gap-1.5">
+                        {WEEKDAYS.map((w, i) => (
+                          <button
+                            key={w}
+                            type="button"
+                            onClick={() => setDayOfWeek(i)}
+                            className="h-8 rounded-lg border text-[10px] transition-colors"
+                            style={
+                              dayOfWeek === i
+                                ? { borderColor: "var(--color-forest-deep)", color: "var(--color-forest-deep)", background: "color-mix(in oklab, var(--color-forest-deep) 8%, transparent)" }
+                                : undefined
+                            }
+                          >
+                            {w}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               {CATEGORIES.map((c) => (
