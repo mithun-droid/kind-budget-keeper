@@ -3,13 +3,15 @@ import { CATEGORIES, categoryLabel, type Category } from "./categories";
 import { suggestCategory, type PredTx } from "@/lib/predictions";
 import { scanReceipt } from "@/lib/receipt.functions";
 import { preprocessReceipt } from "@/lib/image-preprocess";
+import { WEEKDAYS, type RecurringDraft } from "@/lib/recurring";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (amount: number, category: Category, note: string) => Promise<void>;
+  onSubmit: (amount: number, category: Category, note: string, recurring?: RecurringDraft | null) => Promise<void>;
   history?: PredTx[];
 }
+
 
 
 const KEYS = ["1","2","3","4","5","6","7","8","9",".","0","⌫"];
