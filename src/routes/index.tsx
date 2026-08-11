@@ -11,6 +11,11 @@ import { categoryEmoji, categoryLabel, type Category } from "@/components/app/ca
 import { supabase } from "@/integrations/supabase/client";
 import { fmtINR, ringStatus } from "@/lib/family";
 import { isGuest, setGuest, useSession } from "@/hooks/use-session";
+import { RecurringManager } from "@/components/app/RecurringManager";
+import {
+  describeRule, fetchRecurring, nextOccurrence, daysUntil, runDueRecurring,
+  type RecurringDraft, type RecurringRule,
+} from "@/lib/recurring";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,6 +34,7 @@ interface Tx {
   category: Category;
   note: string | null;
   spent_at: string;
+  recurring_id?: string | null;
 }
 
 const fmt = (n: number) =>
@@ -91,6 +97,9 @@ function Dashboard() {
   const [families, setFamilies] = useState<FamilySummary[]>([]);
   const [createFamOpen, setCreateFamOpen] = useState(false);
   const [justCreated, setJustCreated] = useState<FamilySummary | null>(null);
+  const [rules, setRules] = useState<RecurringRule[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [recurringOpen, setRecurringOpen] = useState(false);
 
   const loadFamilies = async (uid: string) => {
     const monthStart = new Date();
@@ -140,7 +149,7 @@ function Dashboard() {
         supabase.from("profiles").select("monthly_budget").eq("id", uid).maybeSingle(),
         supabase
           .from("transactions")
-          .select("id, amount, category, note, spent_at")
+          .select("id, amount, category, note, spent_at, recurring_id")
           .eq("user_id", uid)
           .is("family_id", null)
           .order("spent_at", { ascending: false }),
@@ -155,8 +164,19 @@ function Dashboard() {
             category: t.category as Category,
             note: t.note,
             spent_at: t.spent_at,
+            recurring_id: (t as any).recurring_id ?? null,
           })),
         );
+      }
+      // Auto-log any recurring items due this cycle.
+      const loadedRules = await fetchRecurring(uid);
+      const autoLogged = await runDueRecurring(uid, loadedRules);
+      if (cancelled) return;
+      setRules([...loadedRules]);
+      if (autoLogged.length > 0) {
+        setAllTx((prev) => [...autoLogged, ...prev].sort(
+          (a, b) => new Date(b.spent_at).getTime() - new Date(a.spent_at).getTime(),
+        ));
       }
       await loadFamilies(uid);
     })();
@@ -168,7 +188,7 @@ function Dashboard() {
     setTimeout(() => setToastMsg(null), 1800);
   };
 
-  const addTransaction = async (amount: number, category: Category, note: string) => {
+  const addTransaction = async (amount: number, category: Category, note: string, recurring?: RecurringDraft | null) => {
     // Always read the live session id — a cached id can belong to a superseded
     // session and would be rejected by row-level security.
     const uid = await ensureSession();
@@ -196,7 +216,34 @@ function Dashboard() {
       category: data.category as Category,
       note: data.note,
       spent_at: data.spent_at,
+      recurring_id: null,
     }, ...prev]);
+
+    if (recurring) {
+      const { data: rule, error: ruleErr } = await supabase
+        .from("recurring_expenses")
+        .insert({
+          user_id: uid,
+          amount,
+          category,
+          note: note || null,
+          frequency: recurring.frequency,
+          day_of_month: recurring.frequency === "monthly" ? recurring.dayOfMonth : null,
+          day_of_week: recurring.frequency === "weekly" ? recurring.dayOfWeek : null,
+          start_date: new Date().toISOString().slice(0, 10),
+          last_run_at: new Date().toISOString(),
+        })
+        .select("id, amount, category, note, frequency, day_of_month, day_of_week, start_date, is_active, last_run_at")
+        .single();
+      if (ruleErr || !rule) {
+        console.error("[recurring] create failed", ruleErr);
+        showToast("Logged, but couldn't set repeat");
+        return;
+      }
+      setRules((prev) => [{ ...(rule as any), amount: Number(rule.amount) } as RecurringRule, ...prev]);
+      showToast("Logged · repeats 🔁");
+      return;
+    }
     showToast("Logged");
   };
 
@@ -252,6 +299,20 @@ function Dashboard() {
       .sort((a, b) => b.thisWeek - a.thisWeek)
       .slice(0, 3);
   }, [allTx]);
+
+  const upcoming = useMemo(() => {
+    const active = rules.filter((r) => r.is_active);
+    if (active.length === 0) return null;
+    const next = active
+      .map((r) => ({ rule: r, date: nextOccurrence(r) }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime())[0]!;
+    const d = daysUntil(next.date);
+    return {
+      label: next.rule.note || categoryLabel(next.rule.category),
+      amount: next.rule.amount,
+      when: d <= 0 ? "due today" : d === 1 ? "due tomorrow" : `due in ${d} days`,
+    };
+  }, [rules]);
 
   return (
     <main className="min-h-screen bg-background pb-32">
@@ -327,6 +388,14 @@ function Dashboard() {
 
       <BudgetPrediction transactions={allTx} budget={budget} />
 
+      {upcoming && (
+        <div className="px-6 mt-2">
+          <div className="text-xs text-muted-foreground">
+            🔁 <b className="text-foreground font-medium">{upcoming.label}</b> ({fmt(upcoming.amount)}) {upcoming.when}
+          </div>
+        </div>
+      )}
+
       <div className="px-6">
         <LeaksSection leaks={leaks} />
       </div>
@@ -348,7 +417,10 @@ function Dashboard() {
                 <li key={t.id} className="py-3 flex items-center gap-3 group">
                   <div className="size-10 rounded-xl bg-muted grid place-items-center text-lg">{categoryEmoji(t.category)}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{t.note || categoryLabel(t.category)}</div>
+                    <div className="font-medium text-sm truncate flex items-center gap-1.5">
+                      {t.recurring_id && <span title="Auto-logged recurring expense">🔁</span>}
+                      <span className="truncate">{t.note || categoryLabel(t.category)}</span>
+                    </div>
                     <div className="text-[11px] text-muted-foreground">
                       {categoryLabel(t.category)} · {new Date(t.spent_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                     </div>
@@ -455,7 +527,7 @@ function Dashboard() {
           <TabItem icon="🏠" label="Home" active />
           <TabItem icon="➕" label="Add" onClick={() => setOpen(true)} />
           <TabItem icon="🧾" label="History" onClick={() => document.getElementById("recent-anchor")?.scrollIntoView({ behavior: "smooth" })} />
-          <TabItem icon="⚙️" label="Settings" onClick={() => { setBudgetInput(String(budget)); setEditingBudget(true); }} />
+          <TabItem icon="⚙️" label="Settings" onClick={() => setSettingsOpen(true)} />
         </div>
       </nav>
 
@@ -513,6 +585,75 @@ function Dashboard() {
           </div>
         </div>
       )}
+
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setSettingsOpen(false)} />
+          <div className="relative w-full sm:max-w-md bg-background rounded-t-[28px] sm:rounded-[28px] shadow-2xl animate-pop p-6">
+            <div className="flex items-start justify-between">
+              <h3 className="text-lg font-semibold tracking-tight">⚙️ Settings</h3>
+              <button onClick={() => setSettingsOpen(false)} className="text-sm text-muted-foreground px-2 py-1">Done</button>
+            </div>
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={() => { setSettingsOpen(false); setBudgetInput(String(budget)); setEditingBudget(true); }}
+                className="w-full card-soft p-4 text-left flex items-center gap-3 transition-transform active:scale-[0.98]"
+              >
+                <span className="text-xl">🎯</span>
+                <span className="flex-1">
+                  <span className="block font-medium text-sm">Monthly budget</span>
+                  <span className="block text-[11px] text-muted-foreground numeric">{fmt(budget)}</span>
+                </span>
+                <span className="text-muted-foreground">›</span>
+              </button>
+              <button
+                onClick={() => { setSettingsOpen(false); setRecurringOpen(true); }}
+                className="w-full card-soft p-4 text-left flex items-center gap-3 transition-transform active:scale-[0.98]"
+              >
+                <span className="text-xl">🔁</span>
+                <span className="flex-1">
+                  <span className="block font-medium text-sm">Recurring expenses</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {rules.length === 0 ? "None yet" : `${rules.length} template${rules.length === 1 ? "" : "s"} · ${rules.filter((r) => r.is_active).length} active`}
+                  </span>
+                </span>
+                <span className="text-muted-foreground">›</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <RecurringManager
+        open={recurringOpen}
+        onClose={() => setRecurringOpen(false)}
+        rules={rules}
+        onToggle={async (r) => {
+          const next = !r.is_active;
+          setRules((prev) => prev.map((x) => (x.id === r.id ? { ...x, is_active: next } : x)));
+          const { error } = await supabase.from("recurring_expenses").update({ is_active: next }).eq("id", r.id);
+          if (error) {
+            setRules((prev) => prev.map((x) => (x.id === r.id ? { ...x, is_active: r.is_active } : x)));
+            showToast("Couldn't update");
+            return;
+          }
+          showToast(next ? "Resumed" : "Paused");
+        }}
+        onDelete={async (r) => {
+          const prevRules = rules;
+          setRules((prev) => prev.filter((x) => x.id !== r.id));
+          const { error } = await supabase.from("recurring_expenses").delete().eq("id", r.id);
+          if (error) { setRules(prevRules); showToast("Couldn't delete"); return; }
+          showToast("Recurring removed");
+        }}
+        onEditAmount={async (r, amount) => {
+          const prevRules = rules;
+          setRules((prev) => prev.map((x) => (x.id === r.id ? { ...x, amount } : x)));
+          const { error } = await supabase.from("recurring_expenses").update({ amount }).eq("id", r.id);
+          if (error) { setRules(prevRules); showToast("Couldn't update"); return; }
+          showToast("Updated");
+        }}
+      />
 
       {toastMsg && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-full bg-foreground text-background text-sm shadow-lg">
