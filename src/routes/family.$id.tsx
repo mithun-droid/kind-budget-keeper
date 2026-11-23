@@ -13,8 +13,12 @@ import { fmtINR, ringStatus } from "@/lib/family";
 export const Route = createFileRoute("/family/$id")({
   head: () => ({
     meta: [
-      { title: "Family — SpendWise" },
+      { title: "Family budget — SpendWise" },
       { name: "description", content: "Shared family budget dashboard on SpendWise." },
+      { property: "og:title", content: "Family budget — SpendWise" },
+      { property: "og:description", content: "View shared spending, budgets, and activity for your SpendWise family." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: FamilyDashboard,

@@ -20,8 +20,12 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "SpendWise — Your money, together" },
+      { title: "SpendWise — Family budget tracker" },
       { name: "description", content: "Track personal spending and share family budgets with equal permissions for everyone." },
+      { property: "og:title", content: "SpendWise — Family budget tracker" },
+      { property: "og:description", content: "Track personal spending and share family budgets with equal permissions for everyone." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Dashboard,

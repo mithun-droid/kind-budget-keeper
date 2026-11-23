@@ -8,8 +8,12 @@ import { z } from "zod";
 export const Route = createFileRoute("/report")({
   head: () => ({
     meta: [
-      { title: "Monthly report — SpendWise" },
+      { title: "Spending report — SpendWise" },
       { name: "description", content: "See where you spent the most and least, day by day." },
+      { property: "og:title", content: "Spending report — SpendWise" },
+      { property: "og:description", content: "Review your monthly spending, daily activity, and highest and lowest categories." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   validateSearch: z.object({ family: z.string().optional() }),

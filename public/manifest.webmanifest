@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "SpendWise — Family budgets, together",
+  "short_name": "SpendWise",
+  "description": "Track spending and share family budgets with SpendWise.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f4ee",
+  "theme_color": "#f7f4ee",
+  "icons": [
+    {
+      "src": "/spendwise-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/spendwise-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

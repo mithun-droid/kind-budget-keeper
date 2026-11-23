@@ -5,8 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/join")({
   head: () => ({
     meta: [
-      { title: "Join family — SpendWise" },
+      { title: "Join a SpendWise family" },
       { name: "description", content: "Join a shared family budget on SpendWise." },
+      { property: "og:title", content: "Join a SpendWise family" },
+      { property: "og:description", content: "Join your family’s shared spending and budget on SpendWise." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
