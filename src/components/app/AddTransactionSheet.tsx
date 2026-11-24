@@ -8,7 +8,7 @@ import { WEEKDAYS, type RecurringDraft } from "@/lib/recurring";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (amount: number, category: Category, note: string, recurring?: RecurringDraft | null) => Promise<void>;
+  onSubmit: (amount: number, category: Category, note: string, recurring?: RecurringDraft | null) => Promise<boolean>;
   history?: PredTx[];
 }
 
@@ -21,6 +21,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
   const [amountStr, setAmountStr] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanErr, setScanErr] = useState<string | null>(null);
   const [scannedCat, setScannedCat] = useState<Category | null>(null);
@@ -53,6 +54,7 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
       setStep(1);
       setAmountStr("");
       setNote("");
+      setSubmitErr(null);
       setScanErr(null);
       setScannedCat(null);
       setPreview(null);
@@ -104,14 +106,19 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
   const pickCategory = async (c: Category) => {
     if (submitting || amount <= 0) return;
     setSubmitting(true);
+    setSubmitErr(null);
     try {
-      await onSubmit(
+      const saved = await onSubmit(
         amount,
         c,
         note.trim(),
         recurring ? { frequency, dayOfMonth, dayOfWeek } : null,
       );
-      onClose();
+      if (saved) onClose();
+      else setSubmitErr("Couldn't save — check your connection. Your entry is still here.");
+    } catch (error) {
+      console.error("[tx] submit failed", error);
+      setSubmitErr("Couldn't save — check your connection. Your entry is still here.");
     } finally {
       setSubmitting(false);
     }
@@ -377,6 +384,12 @@ export function AddTransactionSheet({ open, onClose, onSubmit, history = [] }: P
               <div className="text-sm text-muted-foreground">Where did it go?</div>
               <div className="numeric text-2xl font-semibold">₹{amountStr || "0"}</div>
             </div>
+
+            {submitErr && (
+              <div role="alert" className="mt-3 rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+                {submitErr}
+              </div>
+            )}
 
             {suggestion && (
               <button

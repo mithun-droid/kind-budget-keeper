@@ -93,6 +93,8 @@ function Dashboard() {
   };
   const [open, setOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState(false);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetSaveErr, setBudgetSaveErr] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
   const [budget, setBudget] = useState<number>(2000);
   const [allTx, setAllTx] = useState<Tx[]>([]);
@@ -192,11 +194,11 @@ function Dashboard() {
     setTimeout(() => setToastMsg(null), 1800);
   };
 
-  const addTransaction = async (amount: number, category: Category, note: string, recurring?: RecurringDraft | null) => {
+  const addTransaction = async (amount: number, category: Category, note: string, recurring?: RecurringDraft | null): Promise<boolean> => {
     // Always read the live session id — a cached id can belong to a superseded
     // session and would be rejected by row-level security.
     const uid = await ensureSession();
-    if (!uid) { showToast("Couldn't connect — check your internet"); return; }
+    if (!uid) { showToast("Couldn't connect — check your internet"); return false; }
     if (uid !== userId) {
       setUserId(uid);
       await supabase.from("profiles").upsert({ id: uid }, { onConflict: "id" });
@@ -211,7 +213,7 @@ function Dashboard() {
     if (error || !data) {
       console.error("[tx] insert failed", error);
       showToast("Couldn't save — check your connection");
-      return;
+      return false;
     }
 
     setAllTx((prev) => [{
@@ -242,13 +244,14 @@ function Dashboard() {
       if (ruleErr || !rule) {
         console.error("[recurring] create failed", ruleErr);
         showToast("Logged, but couldn't set repeat");
-        return;
+        return true;
       }
       setRules((prev) => [{ ...(rule as any), amount: Number(rule.amount) } as RecurringRule, ...prev]);
       showToast("Logged · repeats 🔁");
-      return;
+      return true;
     }
     showToast("Logged");
+    return true;
   };
 
   const deleteTransaction = async (id: string) => {
@@ -264,15 +267,23 @@ function Dashboard() {
     showToast("Deleted");
   };
 
-  const saveBudget = async (v: number) => {
-    setBudget(v);
-    setEditingBudget(false);
-    showToast("Budget updated");
-    if (!userId) return;
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({ id: userId, monthly_budget: v }, { onConflict: "id" });
-    if (error) console.error("[budget] save failed", error);
+  const saveBudget = async (v: number): Promise<boolean> => {
+    if (!userId) return false;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({ id: userId, monthly_budget: v }, { onConflict: "id" });
+      if (error) {
+        console.error("[budget] save failed", error);
+        return false;
+      }
+      setBudget(v);
+      showToast("Budget updated");
+      return true;
+    } catch (error) {
+      console.error("[budget] save failed", error);
+      return false;
+    }
   };
 
   const monthStart = startOfMonth();
@@ -574,16 +585,30 @@ function Dashboard() {
                 className="numeric flex-1 bg-transparent text-4xl font-semibold focus:outline-none"
               />
             </div>
+            {budgetSaveErr && (
+              <div role="alert" className="mt-3 text-sm text-danger">{budgetSaveErr}</div>
+            )}
             <div className="mt-6 flex gap-2">
               <button onClick={() => setEditingBudget(false)} className="flex-1 py-3 rounded-xl border font-medium text-sm">Cancel</button>
               <button
-                onClick={() => {
+                disabled={budgetSaving}
+                onClick={async () => {
                   const v = parseFloat(budgetInput);
-                  if (v > 0) { saveBudget(v); }
+                  if (v > 0 && !budgetSaving) {
+                    setBudgetSaving(true);
+                    setBudgetSaveErr(null);
+                    try {
+                      const saved = await saveBudget(v);
+                      if (saved) setEditingBudget(false);
+                      else setBudgetSaveErr("Couldn't save your budget. Check your connection and try again.");
+                    } finally {
+                      setBudgetSaving(false);
+                    }
+                  }
                 }}
-                className="flex-1 py-3 rounded-xl bg-foreground text-background font-medium text-sm"
+                className="flex-1 py-3 rounded-xl bg-foreground text-background font-medium text-sm disabled:opacity-60"
               >
-                Save
+                {budgetSaving ? "Saving…" : "Save"}
               </button>
             </div>
           </div>
@@ -654,8 +679,9 @@ function Dashboard() {
           const prevRules = rules;
           setRules((prev) => prev.map((x) => (x.id === r.id ? { ...x, amount } : x)));
           const { error } = await supabase.from("recurring_expenses").update({ amount }).eq("id", r.id);
-          if (error) { setRules(prevRules); showToast("Couldn't update"); return; }
+          if (error) { setRules(prevRules); showToast("Couldn't update"); return false; }
           showToast("Updated");
+          return true;
         }}
       />
 

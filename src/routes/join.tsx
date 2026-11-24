@@ -38,26 +38,32 @@ function JoinPage() {
     if (!code) { setStatus("need-code"); return; }
     setStatus("working"); setMessage("Joining your family…");
 
-    const uid = await ensureSession();
-    if (!uid) { setStatus("error"); setMessage("Couldn't sign you in. Try again."); return; }
+    try {
+      const uid = await ensureSession();
+      if (!uid) { setStatus("error"); setMessage("Couldn't sign you in. Try again."); return; }
 
-    const { data: invite, error: invErr } = await supabase
-      .from("family_invites").select("family_id, code").eq("code", code).maybeSingle();
-    if (invErr || !invite) { setStatus("error"); setMessage("Invite code not found or expired."); return; }
+      const { data: invite, error: invErr } = await supabase
+        .from("family_invites").select("family_id, code").eq("code", code).maybeSingle();
+      if (invErr || !invite) { setStatus("error"); setMessage("Invite code not found or expired."); return; }
 
-    // Already a member?
-    const { data: existing } = await supabase
-      .from("family_members").select("id").eq("family_id", invite.family_id).eq("linked_user_id", uid).maybeSingle();
+      // Already a member?
+      const { data: existing } = await supabase
+        .from("family_members").select("id").eq("family_id", invite.family_id).eq("linked_user_id", uid).maybeSingle();
 
-    if (!existing) {
-      const memberName = (displayName || name || "Member").trim().slice(0, 40) || "Member";
-      const { error: insErr } = await supabase.from("family_members").insert({
-        family_id: invite.family_id, linked_user_id: uid, name: memberName, role: "member",
-      });
-      if (insErr) { setStatus("error"); setMessage(insErr.message || "Couldn't join family."); return; }
+      if (!existing) {
+        const memberName = (displayName || name || "Member").trim().slice(0, 40) || "Member";
+        const { error: insErr } = await supabase.from("family_members").insert({
+          family_id: invite.family_id, linked_user_id: uid, name: memberName, role: "member",
+        });
+        if (insErr) { setStatus("error"); setMessage("Couldn't join your family. Your details are still here; please try again."); return; }
+      }
+
+      navigate({ to: "/family/$id", params: { id: invite.family_id } });
+    } catch (error) {
+      console.error("[family] join failed", error);
+      setStatus("error");
+      setMessage("Couldn't connect. Your code and name are still here; please try again.");
     }
-
-    navigate({ to: "/family/$id", params: { id: invite.family_id } });
   }
 
   useEffect(() => {

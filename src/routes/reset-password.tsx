@@ -41,8 +41,12 @@ function ResetPassword() {
 
     // Give the client a moment to consume the recovery token from the URL.
     const t = setTimeout(async () => {
-      const { data } = await supabase.auth.getSession();
-      settle(Boolean(data.session?.user));
+      try {
+        const { data } = await supabase.auth.getSession();
+        settle(Boolean(data.session?.user));
+      } catch {
+        settle(false);
+      }
     }, 1200);
 
     return () => {

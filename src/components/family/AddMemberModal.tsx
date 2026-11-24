@@ -21,6 +21,7 @@ export function AddMemberModal({
   const [role, setRole] = useState<Role>("member");
   const [budget, setBudget] = useState("0");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
   const valid = name.trim().length > 0;
@@ -57,24 +58,37 @@ export function AddMemberModal({
           <input type="number" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} className="numeric w-full bg-transparent border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--color-forest)]" />
         </Field>
 
+        {error && <div role="alert" className="mt-4 text-sm text-danger">{error}</div>}
+
         <div className="mt-6 flex gap-2">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border font-medium text-sm">Cancel</button>
           <button
             disabled={!valid || saving}
             onClick={async () => {
               setSaving(true);
-              const { error } = await supabase.from("family_members").insert({
-                family_id: familyId,
-                name: name.trim(),
-                email: email.trim() || null,
-                phone: phone ? `+91${phone}` : null,
-                role,
-                individual_budget: parseFloat(budget || "0"),
-              });
-              setSaving(false);
-              if (error) { console.error(error); return; }
-              onAdded();
-              onClose();
+              setError(null);
+              try {
+                const { error: insertError } = await supabase.from("family_members").insert({
+                  family_id: familyId,
+                  name: name.trim(),
+                  email: email.trim() || null,
+                  phone: phone ? `+91${phone}` : null,
+                  role,
+                  individual_budget: parseFloat(budget || "0"),
+                });
+                if (insertError) {
+                  console.error("[member] add failed", insertError);
+                  setError("Couldn't add this member. Your details are still here; please try again.");
+                  return;
+                }
+                onAdded();
+                onClose();
+              } catch (error) {
+                console.error("[member] add failed", error);
+                setError("Couldn't connect. Your details are still here; please try again.");
+              } finally {
+                setSaving(false);
+              }
             }}
             className="flex-1 py-3 rounded-xl font-medium text-sm text-white disabled:opacity-50"
             style={{ background: "var(--color-forest-deep)" }}

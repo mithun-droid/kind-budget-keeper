@@ -218,7 +218,7 @@ function FamilyDashboard() {
             const { data: signIn } = await supabase.auth.signInAnonymously();
             uid = signIn?.user?.id ?? null;
           }
-          if (!uid) { showToast("Couldn't connect — check your internet"); return; }
+          if (!uid) { showToast("Couldn't connect — check your internet"); return false; }
           const myMember = members.find((m) => m.linked_user_id === uid);
           const { error } = await supabase.from("transactions").insert({
             user_id: uid,
@@ -227,10 +227,11 @@ function FamilyDashboard() {
             amount, category, note: note || null,
             spent_at: new Date().toISOString(),
           });
-          if (error) { console.error("[family tx] insert failed", error); showToast("Couldn't save — check your connection"); return; }
+          if (error) { console.error("[family tx] insert failed", error); showToast("Couldn't save — check your connection"); return false; }
 
           showToast("Logged");
           refresh();
+          return true;
         }}
       />
 
@@ -261,6 +262,7 @@ function EditFamilyModal({ family, onClose, onSaved, onDeleted }: {
   const [name, setName] = useState(family.name);
   const [budget, setBudget] = useState(String(family.monthly_budget));
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   return (
     <div className="fixed inset-0 z-50 grid place-items-end sm:place-items-center">
       <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
@@ -271,6 +273,7 @@ function EditFamilyModal({ family, onClose, onSaved, onDeleted }: {
         <input value={name} onChange={(e) => setName(e.target.value.slice(0, 50))} className="mt-1 w-full bg-transparent border rounded-xl px-3 py-2.5 text-sm focus:outline-none" />
         <label className="block mt-4 text-xs uppercase tracking-wider text-muted-foreground">Monthly budget (₹)</label>
         <input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} className="numeric mt-1 w-full bg-transparent border rounded-xl px-3 py-2.5 text-sm focus:outline-none" />
+        {saveError && <div role="alert" className="mt-3 text-sm text-danger">{saveError}</div>}
         <div className="mt-6 flex gap-2">
           <button onClick={onDeleted} className="px-3 py-3 rounded-xl border text-sm font-medium text-[var(--color-danger)]">Delete</button>
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border font-medium text-sm">Cancel</button>
@@ -278,11 +281,21 @@ function EditFamilyModal({ family, onClose, onSaved, onDeleted }: {
             disabled={saving}
             onClick={async () => {
               setSaving(true);
-              const b = parseFloat(budget);
-              const { data, error } = await supabase.from("families").update({ name: name.trim(), monthly_budget: b }).eq("id", family.id).select("*").single();
-              setSaving(false);
-              if (error || !data) return;
-              onSaved(data as any);
+              setSaveError(null);
+              try {
+                const b = parseFloat(budget);
+                const { data, error } = await supabase.from("families").update({ name: name.trim(), monthly_budget: b }).eq("id", family.id).select("*").single();
+                if (error || !data) {
+                  setSaveError("Couldn't save these changes. Your details are still here; please try again.");
+                  return;
+                }
+                onSaved(data as any);
+              } catch (error) {
+                console.error("[family] update failed", error);
+                setSaveError("Couldn't connect. Your details are still here; please try again.");
+              } finally {
+                setSaving(false);
+              }
             }}
             className="flex-1 py-3 rounded-xl font-medium text-sm text-white"
             style={{ background: "var(--color-forest-deep)" }}

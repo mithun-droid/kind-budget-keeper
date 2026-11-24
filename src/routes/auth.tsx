@@ -49,9 +49,13 @@ function AuthScreen() {
     }
     setBusy(true);
     try {
-      await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
+      if (resetError) {
+        setError("Couldn't send the reset link. Check your connection and try again.");
+        return;
+      }
       setResetSent(true);
     } catch {
       setError("Something went wrong. Check your connection and try again.");

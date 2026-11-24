@@ -11,12 +11,13 @@ interface Props {
   rules: RecurringRule[];
   onToggle: (rule: RecurringRule) => Promise<void>;
   onDelete: (rule: RecurringRule) => Promise<void>;
-  onEditAmount: (rule: RecurringRule, amount: number) => Promise<void>;
+  onEditAmount: (rule: RecurringRule, amount: number) => Promise<boolean>;
 }
 
 export function RecurringManager({ open, onClose, rules, onToggle, onDelete, onEditAmount }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [amountInput, setAmountInput] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -65,22 +66,30 @@ export function RecurringManager({ open, onClose, rules, onToggle, onDelete, onE
                           onChange={(e) => setAmountInput(e.target.value)}
                           className="numeric flex-1 bg-transparent border-b border-border py-1 text-lg font-semibold focus:outline-none focus:border-foreground"
                         />
-                        <button onClick={() => setEditingId(null)} className="px-3 py-1.5 rounded-xl border text-xs font-medium">Cancel</button>
+                        <button onClick={() => { setEditingId(null); setEditError(null); }} className="px-3 py-1.5 rounded-xl border text-xs font-medium">Cancel</button>
                         <button
                           onClick={async () => {
                             const v = parseFloat(amountInput);
-                            if (v > 0) await onEditAmount(r, v);
-                            setEditingId(null);
+                            if (v <= 0) return;
+                            setEditError(null);
+                            try {
+                              const saved = await onEditAmount(r, v);
+                              if (saved) setEditingId(null);
+                              else setEditError("Couldn't update this recurring expense. Your amount is still here.");
+                            } catch {
+                              setEditError("Couldn't update this recurring expense. Your amount is still here.");
+                            }
                           }}
                           className="px-3 py-1.5 rounded-xl bg-foreground text-background text-xs font-medium"
                         >
                           Save
                         </button>
                       </div>
+                      {editError && <div role="alert" className="mt-2 text-xs text-danger">{editError}</div>}
                     ) : (
                       <div className="mt-3 flex gap-2">
                         <button
-                          onClick={() => { setEditingId(r.id); setAmountInput(String(r.amount)); }}
+                          onClick={() => { setEditingId(r.id); setAmountInput(String(r.amount)); setEditError(null); }}
                           className="flex-1 py-2 rounded-xl border text-xs font-medium"
                         >
                           Edit

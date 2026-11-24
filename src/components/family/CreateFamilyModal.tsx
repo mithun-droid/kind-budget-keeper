@@ -105,43 +105,50 @@ export function CreateFamilyModal({
             disabled={!valid || saving}
             onClick={async () => {
               setSaving(true); setErr(null);
-              // Always resolve the current auth user; prop may be stale/null on first mount
-              const { data: sess } = await supabase.auth.getSession();
-              const uid = sess.session?.user?.id ?? userId;
-              if (!uid) {
-                setErr("Still syncing your session. Please try again in a moment.");
+              try {
+                // Always resolve the current auth user; prop may be stale/null on first mount
+                const { data: sess } = await supabase.auth.getSession();
+                const uid = sess.session?.user?.id ?? userId;
+                if (!uid) {
+                  setErr("Couldn't connect to your account. Your details are still here; please try again.");
+                  return;
+                }
+                const { data: fam, error } = await supabase
+                  .from("families")
+                  .insert({
+                    name: name.trim(),
+                    monthly_budget: budget,
+                    alloc_fixed_bills: alloc.fixed_bills,
+                    alloc_daily_living: alloc.daily_living,
+                    alloc_shopping: alloc.shopping,
+                    alloc_unplanned: alloc.unplanned,
+                    created_by: uid,
+                  })
+                  .select("id")
+                  .single();
+                if (error || !fam) {
+                  setErr(error?.message ?? "Couldn't create family. Your details are still here; please try again.");
+                  return;
+                }
+                const { error: mErr } = await supabase.from("family_members").insert({
+                  family_id: fam.id,
+                  linked_user_id: uid,
+                  name: creatorName,
+                  role: "member",
+                  individual_budget: budget,
+                });
+                if (mErr) {
+                  console.error("[member seed]", mErr);
+                  setErr("The family was created, but your member entry couldn't be saved. Refresh before trying again.");
+                  return;
+                }
+                onCreated(fam.id);
+              } catch (error) {
+                console.error("[family] create failed", error);
+                setErr("Couldn't connect. Your details are still here; please try again.");
+              } finally {
                 setSaving(false);
-                return;
               }
-              const { data: fam, error } = await supabase
-                .from("families")
-                .insert({
-                  name: name.trim(),
-                  monthly_budget: budget,
-                  alloc_fixed_bills: alloc.fixed_bills,
-                  alloc_daily_living: alloc.daily_living,
-                  alloc_shopping: alloc.shopping,
-                  alloc_unplanned: alloc.unplanned,
-                  created_by: uid,
-                })
-                .select("id")
-                .single();
-              if (error || !fam) {
-                setErr(error?.message ?? "Couldn't create family");
-                setSaving(false);
-                return;
-              }
-              const { error: mErr } = await supabase.from("family_members").insert({
-                family_id: fam.id,
-                linked_user_id: uid,
-                name: creatorName,
-                role: "member",
-                individual_budget: budget,
-              });
-              if (mErr) console.error("[member seed]", mErr);
-
-              setSaving(false);
-              onCreated(fam.id);
             }}
             className="flex-1 py-3 rounded-xl font-medium text-sm text-white disabled:opacity-50"
             style={{ background: "var(--color-forest-deep)" }}
