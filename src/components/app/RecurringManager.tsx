@@ -56,36 +56,38 @@ export function RecurringManager({ open, onClose, rules, onToggle, onDelete, onE
                     </div>
 
                     {editingId === r.id ? (
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">₹</span>
-                        <input
-                          autoFocus
-                          type="number"
-                          inputMode="decimal"
-                          value={amountInput}
-                          onChange={(e) => setAmountInput(e.target.value)}
-                          className="numeric flex-1 bg-transparent border-b border-border py-1 text-lg font-semibold focus:outline-none focus:border-foreground"
-                        />
-                        <button onClick={() => { setEditingId(null); setEditError(null); }} className="px-3 py-1.5 rounded-xl border text-xs font-medium">Cancel</button>
-                        <button
-                          onClick={async () => {
-                            const v = parseFloat(amountInput);
-                            if (v <= 0) return;
-                            setEditError(null);
-                            try {
-                              const saved = await onEditAmount(r, v);
-                              if (saved) setEditingId(null);
-                              else setEditError("Couldn't update this recurring expense. Your amount is still here.");
-                            } catch {
-                              setEditError("Couldn't update this recurring expense. Your amount is still here.");
-                            }
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-foreground text-background text-xs font-medium"
-                        >
-                          Save
-                        </button>
-                      </div>
-                      {editError && <div role="alert" className="mt-2 text-xs text-danger">{editError}</div>}
+                      <>
+                        <div className="mt-3 flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">₹</span>
+                          <input
+                            autoFocus
+                            type="number"
+                            inputMode="decimal"
+                            value={amountInput}
+                            onChange={(e) => setAmountInput(e.target.value)}
+                            className="numeric flex-1 bg-transparent border-b border-border py-1 text-lg font-semibold focus:outline-none focus:border-foreground"
+                          />
+                          <button onClick={() => { setEditingId(null); setEditError(null); }} className="px-3 py-1.5 rounded-xl border text-xs font-medium">Cancel</button>
+                          <button
+                            onClick={async () => {
+                              const v = parseFloat(amountInput);
+                              if (v <= 0) return;
+                              setEditError(null);
+                              try {
+                                const saved = await onEditAmount(r, v);
+                                if (saved) setEditingId(null);
+                                else setEditError("Couldn't update this recurring expense. Your amount is still here.");
+                              } catch {
+                                setEditError("Couldn't update this recurring expense. Your amount is still here.");
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-foreground text-background text-xs font-medium"
+                          >
+                            Save
+                          </button>
+                        </div>
+                        {editError && <div role="alert" className="mt-2 text-xs text-danger">{editError}</div>}
+                      </>
                     ) : (
                       <div className="mt-3 flex gap-2">
                         <button
