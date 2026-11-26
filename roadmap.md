@@ -1,4 +1,5 @@
 # Task roadmap
 
 - [x] Add SpendWise home-screen installation metadata and icons; verify them in the preview.
-- [ ] Resume the paused hosted database after the user's confirmation; the app cannot prevent a later inactivity pause.
+- [x] Resume the paused hosted database after the user's confirmation; it may pause again after inactivity.
+- [ ] Add offline-first saving and automatic sync for expenses, recurring rules, and budgets.
